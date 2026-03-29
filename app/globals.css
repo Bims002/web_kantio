@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f6f0;
+  --foreground: #1b130c;
+  --surface: #fffdfa;
+  --surface-strong: #fff8ef;
+  --line: rgba(27, 19, 12, 0.1);
+  --brand: #e8650a;
+  --brand-deep: #c84f00;
+  --accent: #1b5d35;
+  --muted: #6d6258;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+
+  --color-kantioo-orange: var(--brand);
+  --color-kantioo-dark: var(--foreground);
+  --color-kantioo-sand: var(--surface-strong);
+  --color-kantioo-green: var(--accent);
+  --color-kantioo-line: var(--line);
+  --color-kantioo-muted: var(--muted);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+*::selection {
+  background: rgba(232, 101, 10, 0.18);
+  color: var(--foreground);
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(232, 101, 10, 0.5);
+  outline-offset: 3px;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+@utility shell {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+@utility panel {
+  @apply rounded-[28px] border border-kantioo-line bg-white/88 backdrop-blur-sm shadow-[0_20px_60px_-38px_rgba(27,19,12,0.35)];
+}
+
+@utility panel-soft {
+  @apply rounded-[24px] border border-white/60 bg-white/72 backdrop-blur-sm shadow-[0_18px_50px_-40px_rgba(27,19,12,0.28)];
+}
+
+@utility action-primary {
+  @apply inline-flex items-center justify-center rounded-full bg-kantioo-orange px-5 py-3 font-semibold text-white shadow-[0_18px_36px_-24px_rgba(232,101,10,0.8)] hover:-translate-y-0.5 hover:bg-[var(--brand-deep)];
+}
+
+@utility action-secondary {
+  @apply inline-flex items-center justify-center rounded-full border border-kantioo-line bg-white/78 px-5 py-3 font-semibold text-kantioo-dark hover:-translate-y-0.5 hover:border-kantioo-orange/30 hover:text-kantioo-orange;
+}
+
+@utility section-title {
+  font-family: var(--font-display), sans-serif;
+  @apply text-3xl font-bold tracking-[-0.04em] text-kantioo-dark sm:text-4xl lg:text-5xl;
+}
+
+@utility eyebrow {
+  @apply text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-kantioo-orange;
+}
+
+.display {
+  font-family: var(--font-display), sans-serif;
+}
+
+.grid-backdrop {
+  background-image:
+    linear-gradient(rgba(27, 19, 12, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 19, 12, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center;
+}
