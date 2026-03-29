@@ -1,0 +1,61 @@
+
+> tmp-app@0.1.0 build
+> next build
+
+▲ Next.js 16.2.1 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 18.4s
+  Running TypeScript ...
+  Finished TypeScript in 13.8s ...
+  Collecting page data using 3 workers ...
+Error: Failed to collect configuration for /fournisseurs/[id]
+    at ignore-listed frames {
+  [cause]: Error: supabaseUrl is required.
+      at <unknown> (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43441)
+      at new cv (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43692)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:48030)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[root-of-the-server]__0_eaf82._.js:1:11851)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+}
+Error: Failed to collect configuration for /fournisseurs
+    at ignore-listed frames {
+  [cause]: Error: supabaseUrl is required.
+      at <unknown> (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43441)
+      at new cv (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43692)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:48030)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[root-of-the-server]__0sq8pqx._.js:1:1713)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+}
+Error: Failed to collect configuration for /assistant-commande
+    at ignore-listed frames {
+  [cause]: Error: supabaseUrl is required.
+      at <unknown> (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43441)
+      at new cv (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:43692)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\lib_supabase_ts_0e4ysyx._.js:37:48030)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+      at module evaluation (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[root-of-the-server]__0x964t5._.js:1:2102)
+      at instantiateModule (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:853:9)
+      at getOrInstantiateModuleFromParent (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:877:12)
+      at Context.esmImport [as i] (E:\dev\Ecoverse Projet\Kantioo\.next\server\chunks\ssr\[turbopack]_runtime.js:281:20)
+}
+
+> Build error occurred
+Error: Failed to collect page data for /fournisseurs/[id]
+    at ignore-listed frames {
+  type: 'Error'
+}
