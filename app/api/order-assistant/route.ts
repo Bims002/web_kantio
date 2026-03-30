@@ -174,7 +174,7 @@ export async function POST(request: Request) {
       "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation. " +
       "Reponses courtes, concretes, en francais. " +
       "IMPORTANT : Tu DOIS toujours renvoyer ta réponse EXCLUSIVEMENT sous forme d'un objet JSON avec deux clés exactes : " +
-      "\"message\" (qui contient ta reponse textuelle naturelle), et \"suggestions\" (qui contient un tableau de 2 a 3 courtes phrases que l'utilisateur pourrait cliquer en fonction du contexte, ex: [\"Mon quartier est Akwa\", \"Combien coute la livraison ?\"]). " +
+      "\"message\" (qui contient ta reponse textuelle naturelle), et \"suggestions\" (qui contient un tableau de 2 a 3 reponses probables QUE L'UTILISATEUR POURRAIT TE DONNER. Ce sont des boutons 'quick reply' pour que le client te réponde en 1 clic. Ex: Si tu lui demandes son quartier, tes suggestions doivent etre ['Je suis a Makepe', 'Bastos', 'Je ne sais pas']. Si tu lui demandes si le panier est OK, tes suggestions doivent etre ['Oui tout est bon', 'Non il manque un truc']. NE METS PAS tes propres questions dans les suggestions !). " +
       "Le code retourné doit être du JSON valide strict. Ne rajoute aucun commentaire en dehors du JSON." +
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply

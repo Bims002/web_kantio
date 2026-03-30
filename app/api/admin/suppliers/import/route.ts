@@ -46,23 +46,56 @@ export async function POST(request: Request) {
         }
       }
 
-      const name = row.name || row.nom || row.fournisseur || row.supplier || '';
-      const phone = row.phone || row.tel || row.téléphone || row.telephone || row.phone_number || row.mobile || '';
-      const city = row.city || row.ville || '';
+      let mappedName = '';
+      let mappedPhone = '';
+      let mappedCity = '';
+      let mappedContactName = '';
+      let mappedQuartier = '';
+      let mappedEmail = '';
+      let mappedDelay = '';
+      let mappedStock = '';
+
+      for (const [key, val] of Object.entries(row)) {
+        if (!key) continue;
+        const k = key.toString();
+        const value = String(val);
+
+        if (!mappedName && (k === 'name' || k === 'nom' || k === 'fournisseur' || k === 'supplier' || k.includes('entreprise'))) {
+          mappedName = value;
+        } else if (!mappedPhone && (k === 'phone' || k === 'tel' || k.includes('téléphone') || k.includes('telephone') || k.includes('tlphone') || k.includes('whatsapp') || k.includes('mobile') || k.includes('numro'))) {
+          mappedPhone = value;
+        } else if (!mappedCity && (k === 'city' || k === 'ville' || k.includes('ville'))) {
+          mappedCity = value;
+        } else if (!mappedContactName && (k === 'contact_name' || k === 'contact' || k.includes('nom_complet') || k.includes('responsable'))) {
+          mappedContactName = value;
+        } else if (!mappedQuartier && (k === 'quartier' || k.includes('quartier') || k.includes('zone'))) {
+          mappedQuartier = value;
+        } else if (!mappedEmail && (k === 'email' || k === 'e-mail')) {
+          mappedEmail = value;
+        } else if (!mappedDelay && (k.includes('délai') || k.includes('delai') || k.includes('dlai') || k.includes('delay'))) {
+          mappedDelay = value;
+        } else if (!mappedStock && (k.includes('stock') || k.includes('permanence'))) {
+          mappedStock = value;
+        }
+      }
+
+      const name = mappedName || '';
+      const phone = mappedPhone || '';
+      const city = mappedCity || '';
 
       return {
         name: name.trim(),
         phone: phone.trim(),
-        contact_name: row.contact_name?.trim() ?? row.contact?.trim() ?? null,
-        email: row.email?.trim() ?? null,
-        city: city.trim() ?? 'Douala',
-        quartier: row.quartier?.trim() ?? null,
-        address: row.address?.trim() ?? row.adresse?.trim() ?? null,
+        contact_name: mappedContactName?.trim() || null,
+        email: mappedEmail?.trim() || null,
+        city: city.trim() || 'Douala',
+        quartier: mappedQuartier?.trim() || null,
+        address: mappedQuartier?.trim() || null,
         lat: Number(row.lat) || Number(row.latitude) || 0,
         lng: Number(row.lng) || Number(row.longitude) || 0,
         delivery_radius: Number(row.delivery_radius) || Number(row.rayon) || 20,
-        delivery_delay_hours: Number(row.delivery_delay_hours) || Number(row.delai) || 24,
-        stock_availability: row.stock_availability ?? row.stock ?? 'permanent',
+        delivery_delay_hours: parseInt(mappedDelay) || Number(row.delivery_delay_hours) || 24,
+        stock_availability: mappedStock || row.stock_availability || 'permanent',
         is_active: row.is_active ? String(row.is_active).toLowerCase() === 'true' : true,
         // @ts-ignore – type may not include this field explicitly
         delivery_zones: null,
