@@ -471,19 +471,19 @@ export function findBestSupplierForLocation(
     
     if (availableItems.length === 0) return { supplier, score: -1 };
 
-    // 2. Compute a global score for all items in the cart
-    // Since scoreSupplier is per-material, we average or sum?
-    // Let's take the first item as a simplified priority or average them.
     let totalScore = 0;
-    const allPrices = citySuppliers.flatMap(s => s.supplier_materials.map(m => m.price));
     const allDistances = citySuppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
 
     availableItems.forEach(item => {
+      const allPricesForThisMaterial = citySuppliers
+        .map(s => s.supplier_materials.find(sm => sm.material_id === item.materialId)?.price)
+        .filter((p): p is number => p !== undefined);
+
       totalScore += scoreSupplier({
         supplier,
         siteCoords,
         materialId: item.materialId,
-        allPrices,
+        allPrices: allPricesForThisMaterial,
         allDistances
       });
     });

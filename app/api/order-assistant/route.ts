@@ -78,14 +78,20 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
     return `Le fournisseur ${draft.selectedSupplier?.name || "choisi"} annonce un delai de ${draft.selectedSupplier?.delivery_delay_hours || "quelques"}h. Si vous voulez, je peux aussi verifier si le quartier de livraison est assez clair pour le livreur.`;
   }
 
-  if (text.includes("panier") || text.includes("materiau") || text.includes("materiaux")) {
-    return `Votre panier actuel contient ${cartSummary}. Si vous voulez ajuster la commande, dites-moi simplement ce que vous voulez verifier ou changer.`;
+  if (text.includes("panier") || text.includes("produit") || text.includes("article") || text.includes("materiau")) {
+    if (draft.cart.length > 0) {
+      return `Votre panier contient ${cartSummary}. ${nextQuestion || ""}`;
+    }
+    return nextQuestion || "Que souhaitez-vous commander (ex: ciment, sable, fer) ?";
   }
 
   if (text.includes("adresse") || text.includes("quartier") || text.includes("chantier")) {
-    return draft.siteInfo.address.trim()
-      ? `Le quartier de livraison renseigne est ${draft.siteInfo.address}, ${formatCityLabel(draft.siteInfo.city)}. Si vous voulez ajouter un repere utile pour le livreur, vous pouvez me le donner ici.`
-      : nextQuestion || "Il me manque encore le quartier de livraison pour finaliser la commande.";
+    if (draft.siteInfo.address.trim()) {
+      return nextQuestion 
+        ? `C'est bien note pour ${draft.siteInfo.address}. ${nextQuestion}`
+        : `Le quartier de livraison est ${draft.siteInfo.address}. Tout est pret pour la commande.`;
+    }
+    return nextQuestion || "Dans quel quartier se trouve votre chantier ?";
   }
 
   if (text.includes("contact") || text.includes("telephone") || text.includes("whatsapp")) {
