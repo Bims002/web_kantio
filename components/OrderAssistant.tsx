@@ -189,7 +189,7 @@ export default function OrderAssistant({
         setMessages([
           {
             role: 'assistant',
-            content: `Bonjour ! Avant de commencer, dans quel quartier de ${formatCityLabel(recommendationContext.city)} se trouve votre chantier ?`,
+            content: `D'accord, dans quel quartier de ${formatCityLabel(recommendationContext.city)} se trouve votre chantier ?`,
           },
         ]);
         return;
@@ -469,7 +469,9 @@ export default function OrderAssistant({
     setLoadingReply(true);
     setErrorMessage('');
 
-    if (draft && nextDraftField) {
+    // 1. If we are waiting for a specific draft field, try to answer it first.
+    // However, if we are waiting for materialSearch, we skip this to allow recommendation flow logic.
+    if (draft && nextDraftField && nextDraftField !== 'materialSearch') {
       const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
       
       if (validation.isValid && recommendationContext) {
@@ -500,7 +502,8 @@ export default function OrderAssistant({
       }
     }
 
-    // 2. If no field was definitively answered, try recommendation flow (material search).
+    // 2. Recommendation flow (material search).
+    // This handles both the explicit "materialSearch" state and any other search-like query.
     if (recommendationContext) {
       const siteCoords =
         typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'

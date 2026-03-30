@@ -61,8 +61,8 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
     text.includes("fournisseur")
   ) {
     return nextQuestion
-      ? `Je ne partage pas les coordonnees directes du fournisseur. Je gere la commande ici avec vous. ${nextQuestion}`
-      : "Je ne partage pas les coordonnees directes du fournisseur. Je peux en revanche verifier le panier, la livraison et la finalisation avec vous.";
+      ? `Je ne partage pas les coordonnees du fournisseur car c'est Kantioo qui s'en occupe. ${nextQuestion}`
+      : "Je ne partage pas les coordonnees directes du fournisseur. Je suis la pour coordonner votre commande.";
   }
 
   if (
@@ -100,9 +100,7 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
       : "Tout est bon cote panier, livraison et contact. Si tout vous convient, vous pouvez finaliser la commande.";
   }
 
-  return nextQuestion
-    ? `Je reste concentree sur votre commande et sur les informations deja connues. ${nextQuestion}`
-    : "Je peux vous aider naturellement sur le panier, le prix, le delai, la livraison, le contact de reception et la finalisation. Dites-moi ce que vous voulez verifier.";
+  return nextQuestion || "Je suis prêt pour la suite.";
 }
 
 function extractOpenRouterText(payload: unknown) {

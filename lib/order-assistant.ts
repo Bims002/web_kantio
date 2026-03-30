@@ -69,6 +69,7 @@ export interface MaterialMatch {
 
 export type RequiredDraftField =
   | "siteAddress"
+  | "materialSearch"
   | "contactName"
   | "contactPhone";
 
@@ -122,17 +123,22 @@ const REQUIRED_FIELD_CONFIG: Record<
   siteAddress: {
     label: "quartier de livraison",
     prompt:
-      "Pour organiser la livraison, j ai besoin du quartier de livraison. Dans quel quartier faut-il livrer ?",
+      "D'accord, dans quel quartier se trouve votre chantier ?",
+  },
+  materialSearch: {
+    label: "choix du materiau",
+    prompt:
+      "C'est note. Quel materiau souhaitez-vous commander (ex: ciment, sable, fer) ?",
   },
   contactName: {
     label: "nom du contact",
     prompt:
-      "Parfait. Quel est le nom de la personne a contacter pour la reception de la commande ?",
+      "Parfait. Quel est le nom du contact pour la reception ?",
   },
   contactPhone: {
     label: "numero du contact",
     prompt:
-      "Derniere information indispensable: quel numero de telephone devons-nous utiliser pour joindre ce contact ?",
+      "Derniere étape : quel numero de telephone devons-nous utiliser pour joindre ce contact ?",
   },
 };
 
@@ -289,6 +295,7 @@ export function getMissingDraftFields(draft: OrderDraft | null): RequiredDraftFi
   const missing: RequiredDraftField[] = [];
 
   if (!draft.siteInfo.address.trim()) missing.push("siteAddress");
+  if (draft.cart.length === 0) missing.push("materialSearch");
   if (!draft.contactInfo.name.trim()) missing.push("contactName");
   if (!draft.contactInfo.phone.trim()) missing.push("contactPhone");
 
