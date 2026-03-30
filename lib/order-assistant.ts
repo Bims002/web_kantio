@@ -97,6 +97,16 @@ const QUARTIER_COORDS: Record<string, Record<string, { lat: number; lng: number 
     kotto: { lat: 4.1084, lng: 9.7583 },
     japoma: { lat: 4.0152, lng: 9.7947 },
     makepe: { lat: 4.0812, lng: 9.7541 },
+    bepanda: { lat: 4.0658, lng: 9.7283 },
+    nyalla: { lat: 4.0258, lng: 9.7783 },
+    yassa: { lat: 4.0058, lng: 9.8183 },
+    logbessou: { lat: 4.1258, lng: 9.7683 },
+    cite_des_palmiers: { lat: 4.0758, lng: 9.7483 },
+    bonaberi: { lat: 4.0758, lng: 9.6683 },
+    ndogpassi: { lat: 4.0258, lng: 9.7683 },
+    soboum: { lat: 4.0358, lng: 9.7283 },
+    pk14: { lat: 4.1158, lng: 9.8083 },
+    pk12: { lat: 4.1058, lng: 9.7903 },
   },
   yaounde: {
     bastos: { lat: 3.894, lng: 11.5109 },
@@ -110,6 +120,16 @@ const QUARTIER_COORDS: Record<string, Record<string, { lat: number; lng: number 
     ngo_eke: { lat: 3.8542, lng: 11.5312 },
     mimboman: { lat: 3.8642, lng: 11.5512 },
     mvog_bi: { lat: 3.8412, lng: 11.5112 },
+    essos: { lat: 3.8712, lng: 11.5312 },
+    ngousso: { lat: 3.8912, lng: 11.5412 },
+    ekounou: { lat: 3.8312, lng: 11.5312 },
+    etoudi: { lat: 3.9112, lng: 11.5112 },
+    damas: { lat: 3.8212, lng: 11.4812 },
+    mvog_ada: { lat: 3.8612, lng: 11.5212 },
+    obobogo: { lat: 3.8112, lng: 11.5012 },
+    ahala: { lat: 3.7812, lng: 11.5112 },
+    nkoabang: { lat: 3.8512, lng: 11.5812 },
+    mballa_2: { lat: 3.8912, lng: 11.5212 },
   },
 };
 
@@ -398,15 +418,37 @@ export function applyDraftFieldAnswer(
       let lat = draft.siteInfo.lat;
       let lng = draft.siteInfo.lng;
 
-      // Try local dictionary
+      // Try local dictionary with token-based scoring
       const cityQuartiers = QUARTIER_COORDS[cityKey];
       if (cityQuartiers) {
-        // Direct match or partial match (case-insensitive via normalizedQuartier)
-        const foundKey = Object.keys(cityQuartiers).find(k => normalizedQuartier.includes(k) || k.includes(normalizedQuartier));
-        if (foundKey) {
-          lat = cityQuartiers[foundKey].lat;
-          lng = cityQuartiers[foundKey].lng;
-          console.log(`Geocoding local match: ${value} -> ${lat}, ${lng}`);
+        const tokens = normalizedQuartier.split(/\s+/).filter(t => t.length >= 3);
+        
+        // Find best match based on longest key match or token overlap
+        let bestKey: string | null = null;
+        let highestScore = 0;
+
+        Object.keys(cityQuartiers).forEach(key => {
+          const normalizedKey = key.replace(/_/g, ' ');
+          let score = 0;
+
+          // 1. Full substring match
+          if (normalizedQuartier.includes(normalizedKey)) score += 50;
+          
+          // 2. Token overlap
+          tokens.forEach(token => {
+            if (normalizedKey.includes(token)) score += 20;
+          });
+
+          if (score > highestScore) {
+            highestScore = score;
+            bestKey = key;
+          }
+        });
+
+        if (bestKey && highestScore >= 40) {
+          lat = cityQuartiers[bestKey].lat;
+          lng = cityQuartiers[bestKey].lng;
+          console.log(`Geocoding best match: ${value} -> ${bestKey} (${lat}, ${lng}) with score ${highestScore}`);
         }
       }
 
