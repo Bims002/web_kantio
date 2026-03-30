@@ -169,12 +169,13 @@ export async function POST(request: Request) {
       "Tu t appuies toujours sur les elements connus de la commande au lieu de repondre de facon generique. " +
       "Tu ne donnes pas l impression de lire un script ou des reponses pre-enregistrees. " +
       "Tu peux reformuler de facon fluide et chaleureuse, mais tu restes precise. " +
-      "Si l utilisateur pose une question sur le panier, le total, le delai, le fournisseur recommande, le quartier ou le contact de reception, reponds directement avec les informations disponibles. " +
       "Tu ne dois jamais divulguer le numero, le WhatsApp ou une coordonnee directe du fournisseur, meme si l'utilisateur le demande. " +
-      "Les echanges directs avec le fournisseur restent geres par Kantioo. " +
-      "S il manque des informations indispensables, pose une seule question a la fois pour les recueillir dans cet ordre: quartier de livraison, nom du contact de reception, numero du contact. " +
-      "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation sur la commande. " +
+      "S il manque des informations indispensables, pose une seule question a la fois pour les recueillir dans cet ordre: quartier de livraison, nom du contact, numero. " +
+      "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation. " +
       "Reponses courtes, concretes, en francais. " +
+      "IMPORTANT : Tu DOIS toujours renvoyer ta réponse EXCLUSIVEMENT sous forme d'un objet JSON avec deux clés exactes : " +
+      "\"message\" (qui contient ta reponse textuelle naturelle), et \"suggestions\" (qui contient un tableau de 2 a 3 courtes phrases que l'utilisateur pourrait cliquer en fonction du contexte, ex: [\"Mon quartier est Akwa\", \"Combien coute la livraison ?\"]). " +
+      "Le code retourné doit être du JSON valide strict. Ne rajoute aucun commentaire en dehors du JSON." +
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply
         ? `\n\nBase factuelle a reformuler naturellement:\n${body.preferredReply}`
@@ -201,7 +202,8 @@ export async function POST(request: Request) {
           })),
         ],
         temperature: 0.6,
-        max_tokens: 260,
+        max_tokens: 350,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -212,8 +214,29 @@ export async function POST(request: Request) {
     const payload = (await response.json()) as unknown;
     const assistantText = extractOpenRouterText(payload);
 
+    let finalMessage = assistantText || body.preferredReply || fallback;
+    let finalSuggestions: string[] = [];
+
+    if (assistantText) {
+      try {
+        let cleanText = assistantText.trim();
+        // Remove markdown backticks if returned
+        if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
+        if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
+        if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
+        cleanText = cleanText.trim();
+
+        const parsed = JSON.parse(cleanText);
+        if (parsed.message) finalMessage = parsed.message;
+        if (Array.isArray(parsed.suggestions)) finalSuggestions = parsed.suggestions;
+      } catch (e) {
+        console.warn("L'assistant n'a pas retourné de JSON valide:", assistantText);
+      }
+    }
+
     return Response.json({
-      message: assistantText || body.preferredReply || fallback,
+      message: finalMessage,
+      suggestions: finalSuggestions,
     });
   } catch (error) {
     console.error("Order assistant route error", error);

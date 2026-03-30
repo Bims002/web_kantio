@@ -37,14 +37,17 @@ export async function POST(request: Request) {
       return Response.json({ error: `Erreur de lecture CSV: ${msg}` }, { status: 400 });
     }
     const payloads: Supplier[] = rows.map((originalRow) => {
-      // Normaliser les clés (minuscules, sans espaces)
+      // Normaliser les clés (minuscules, sans espaces, retrait du BOM)
       const row: any = {};
       for (const [key, value] of Object.entries(originalRow)) {
-        if (key) row[key.toLowerCase().trim()] = value;
+        if (key) {
+          const cleanKey = key.toLowerCase().replace(/[\uFEFF\xA0]/g, '').trim();
+          row[cleanKey] = value;
+        }
       }
 
       const name = row.name || row.nom || row.fournisseur || row.supplier || '';
-      const phone = row.phone || row.tel || row.téléphone || row.phone_number || row.mobile || '';
+      const phone = row.phone || row.tel || row.téléphone || row.telephone || row.phone_number || row.mobile || '';
       const city = row.city || row.ville || '';
 
       return {
@@ -66,15 +69,19 @@ export async function POST(request: Request) {
       } as Supplier;
     });
 
-    for (const p of payloads) {
-      if (!p.name || !p.phone || !p.city) {
-        return Response.json({ error: 'Chaque ligne doit contenir au moins name, phone et city.' }, { status: 400 });
-      }
+    // Filtrer les lignes incompletes sans tout faire planter
+    const validPayloads = payloads.filter(p => p.name && p.phone && p.city);
+
+    if (validPayloads.length === 0) {
+      const detectedColumns = rows.length > 0 ? Object.keys(rows[0]).join(', ') : 'Aucune';
+      return Response.json({ 
+        error: `Aucun fournisseur valide trouve. Colonnes detectees dans votre CSV : [${detectedColumns}]. Verifiez que vous avez bien des colonnes nommees "Nom", "Tel" et "Ville" (ou equivalent).` 
+      }, { status: 400 });
     }
 
     const { data, error } = await supabaseServer
       .from('suppliers')
-      .upsert(payloads, { onConflict: 'phone,email' })
+      .upsert(validPayloads, { onConflict: 'phone,email' })
       .select('*');
     if (error) throw error;
 

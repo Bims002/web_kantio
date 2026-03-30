@@ -39,6 +39,7 @@ import Link from 'next/link';
 interface ChatMessage {
   role: 'assistant' | 'user';
   content: string;
+  suggestions?: string[];
 }
 
 const STORAGE_KEY = 'kantioo-order-draft';
@@ -259,9 +260,10 @@ export default function OrderAssistant({
     const requestDraft = draftOverride ?? draft;
 
     if (!requestDraft && !preferredReply) {
-      return (
-        "Je suis la pour vous aider sur cette commande. Dites-moi ce que vous voulez verifier."
-      );
+      return {
+        message: "Je suis la pour vous aider sur cette commande. Dites-moi ce que vous voulez verifier.",
+        suggestions: []
+      };
     }
 
     try {
@@ -278,20 +280,22 @@ export default function OrderAssistant({
         }),
       });
 
-      const payload = (await response.json()) as { message?: string; error?: string };
+      const payload = (await response.json()) as { message?: string; suggestions?: string[]; error?: string };
 
       if (!response.ok || !payload.message) {
         throw new Error(payload.error || 'Aucune reponse de l assistant.');
       }
 
-      return payload.message;
+      return { message: payload.message, suggestions: payload.suggestions };
     } catch (error) {
       console.error('Assistant reply error', error);
 
-      return (
-        preferredReply ||
-        "Je n'arrive pas a repondre pour l'instant. Je peux quand meme vous laisser finaliser la commande si tout est correct."
-      );
+      return {
+        message:
+          preferredReply ||
+          "Je n'arrive pas a repondre pour l'instant. Je peux quand meme vous laisser finaliser la commande si tout est correct.",
+        suggestions: [],
+      };
     }
   };
 
@@ -300,7 +304,7 @@ export default function OrderAssistant({
     preferredReply?: string;
     draftOverride?: OrderDraft | null;
   }) => {
-    const [assistantMessage] = await Promise.all([
+    const [assistantResponse] = await Promise.all([
       resolveAssistantReply(input),
       wait(ASSISTANT_TYPING_DELAY_MS),
     ]);
@@ -309,7 +313,8 @@ export default function OrderAssistant({
       ...current,
       {
         role: 'assistant',
-        content: assistantMessage,
+        content: assistantResponse.message,
+        suggestions: assistantResponse.suggestions,
       },
     ]);
     setLoadingReply(false);
@@ -423,14 +428,16 @@ export default function OrderAssistant({
     };
   };
 
-  const handleSend = async () => {
-    if ((!draft && !recommendationContext) || !input.trim() || loadingReply) {
+  const handleSend = async (textOverride?: string | React.MouseEvent) => {
+    const textToSubmit = typeof textOverride === 'string' ? textOverride : input;
+
+    if ((!draft && !recommendationContext) || !textToSubmit.trim() || loadingReply) {
       return;
     }
 
     const nextUserMessage: ChatMessage = {
       role: 'user',
-      content: input.trim(),
+      content: textToSubmit.trim(),
     };
 
     setMessages((current) => [...current, nextUserMessage]);
@@ -581,23 +588,40 @@ export default function OrderAssistant({
               className="flex-1 space-y-4 overflow-y-auto px-6 py-6 pr-3 sm:px-8"
             >
               {messages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${
-                      message.role === 'assistant'
-                        ? 'bg-kantioo-sand text-kantioo-dark'
-                        : 'bg-kantioo-dark text-white'
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] opacity-70">
-                      {message.role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
-                      {message.role === 'assistant' ? 'Assistant' : 'Vous'}
+                <div key={`${message.role}-${index}`} className="flex flex-col gap-1">
+                  <div className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${
+                        message.role === 'assistant'
+                          ? 'bg-kantioo-sand text-kantioo-dark'
+                          : 'bg-kantioo-dark text-white'
+                      }`}
+                    >
+                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] opacity-70">
+                        {message.role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
+                        {message.role === 'assistant' ? 'Assistant' : 'Vous'}
+                      </div>
+                      <p>{message.content}</p>
                     </div>
-                    <p>{message.content}</p>
                   </div>
+                  {message.role === 'assistant' &&
+                    message.suggestions &&
+                    message.suggestions.length > 0 &&
+                    index === messages.length - 1 &&
+                    !loadingReply && (
+                      <div className="mt-2 flex flex-wrap justify-start gap-2">
+                        {message.suggestions.map((suggestion, sIdx) => (
+                          <button
+                            key={sIdx}
+                            type="button"
+                            onClick={() => handleSend(suggestion)}
+                            className="rounded-[16px] border border-kantioo-line bg-white px-4 py-2 text-sm text-kantioo-dark shadow-sm transition-colors hover:border-kantioo-orange hover:bg-kantioo-sand"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
               ))}
 
