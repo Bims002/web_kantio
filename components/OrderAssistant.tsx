@@ -604,24 +604,6 @@ export default function OrderAssistant({
                       <p>{message.content}</p>
                     </div>
                   </div>
-                  {message.role === 'assistant' &&
-                    message.suggestions &&
-                    message.suggestions.length > 0 &&
-                    index === messages.length - 1 &&
-                    !loadingReply && (
-                      <div className="mt-2 flex flex-wrap justify-start gap-2">
-                        {message.suggestions.map((suggestion, sIdx) => (
-                          <button
-                            key={sIdx}
-                            type="button"
-                            onClick={() => handleSend(suggestion)}
-                            className="rounded-[16px] border border-kantioo-line bg-white px-4 py-2 text-sm text-kantioo-dark shadow-sm transition-colors hover:border-kantioo-orange hover:bg-kantioo-sand"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                 </div>
               ))}
 
@@ -660,11 +642,15 @@ export default function OrderAssistant({
                     Envoyer
                     <ArrowRight size={16} />
                   </button>
-                  <button
+                   <button
                     type="button"
                     onClick={handleFinalize}
-                    disabled={!draft || finalizing}
-                    className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-24px_rgba(5,150,105,0.95)] transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!draft || finalizing || Boolean(nextDraftField)}
+                    className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${
+                      !nextDraftField && draft
+                        ? 'bg-emerald-600 shadow-[0_18px_36px_-24px_rgba(5,150,105,0.95)] hover:-translate-y-0.5 hover:bg-emerald-700'
+                        : 'bg-kantioo-muted opacity-40 cursor-not-allowed'
+                    }`}
                   >
                     {finalizing ? 'Finalisation...' : 'Finaliser la commande'}
                   </button>

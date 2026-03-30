@@ -173,13 +173,7 @@ export async function POST(request: Request) {
       "S il manque des informations indispensables, pose une seule question a la fois pour les recueillir dans cet ordre: quartier de livraison, nom du contact, numero. " +
       "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation. " +
       "Reponses courtes, concretes, en francais. " +
-      "IMPORTANT : Ta reponse finale DOIT STRICTEMENT etre un objet JSON contenant seulement 2 cles: \n" +
-      "1. \"message\" : Ta reponse normale en texte clair (ex: 'Dans quel quartier faut-il livrer ?').\n" +
-      "2. \"suggestions\" : Un tableau de 2 a 3 phrases courtes QUE L'UTILISATEUR POURRAIT CLIQUER POUR TE REPONDRE. Ce ne sont PAS tes questions, ce sont les REPONSES du client !\n" +
-      "   - REGLE D'OR : Si tu poses une question dans le 'message', les 'suggestions' doivent etre les reponses probables a cette question.\n" +
-      "   - EXEMPLE : Si message=\"Dans quel quartier êtes-vous ?\", alors suggestions=[\"Je suis à Akwa\", \"Bastos\", \"Bonapriso\"].\n" +
-      "   - NE JAMAIS METTRE de points d'interrogation dans les suggestions.\n" +
-      "Le code retourné doit être du JSON valide strict. Ne rajoute aucun commentaire en dehors du JSON." +
+      "IMPORTANT : Ta reponse doit être calme et naturelle. " +
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply
         ? `\n\nBase factuelle a reformuler naturellement:\n${body.preferredReply}`
@@ -207,7 +201,6 @@ export async function POST(request: Request) {
         ],
         temperature: 0.6,
         max_tokens: 350,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -218,29 +211,9 @@ export async function POST(request: Request) {
     const payload = (await response.json()) as unknown;
     const assistantText = extractOpenRouterText(payload);
 
-    let finalMessage = assistantText || body.preferredReply || fallback;
-    let finalSuggestions: string[] = [];
-
-    if (assistantText) {
-      try {
-        let cleanText = assistantText.trim();
-        // Remove markdown backticks if returned
-        if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
-        if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
-        if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
-        cleanText = cleanText.trim();
-
-        const parsed = JSON.parse(cleanText);
-        if (parsed.message) finalMessage = parsed.message;
-        if (Array.isArray(parsed.suggestions)) finalSuggestions = parsed.suggestions;
-      } catch (e) {
-        console.warn("L'assistant n'a pas retourné de JSON valide:", assistantText);
-      }
-    }
-
     return Response.json({
-      message: finalMessage,
-      suggestions: finalSuggestions,
+      message: assistantText || body.preferredReply || fallback,
+      suggestions: [],
     });
   } catch (error) {
     console.error("Order assistant route error", error);
