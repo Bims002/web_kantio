@@ -563,7 +563,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       const supplier = suppliers.find((s) => s.id === order.supplier_id);
                       return (
                         <a
-                          href={buildWhatsAppLink(generateWhatsAppMessage(order), supplier?.phone)}
+                          href={buildWhatsAppLink(generateWhatsAppMessage(order))}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center justify-center gap-2 rounded-full bg-kantioo-green px-5 py-3 text-sm font-semibold text-white"
