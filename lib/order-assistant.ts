@@ -343,30 +343,28 @@ export function applyDraftFieldAnswer(
   field: RequiredDraftField,
   rawValue: string
 ): OrderDraft {
-  const value = validateDraftFieldAnswer(field, rawValue).normalizedValue;
+  const validation = validateDraftFieldAnswer(field, rawValue);
+  const value = validation.isValid ? validation.normalizedValue : rawValue;
 
   switch (field) {
     case "siteAddress":
-      return createOrderDraft({
+      return {
         ...draft,
         siteInfo: { ...draft.siteInfo, address: value },
-        contactInfo: draft.contactInfo,
-        totalAmount: draft.totalAmount,
-      });
+        createdAt: new Date().toISOString(),
+      };
     case "contactName":
-      return createOrderDraft({
+      return {
         ...draft,
-        siteInfo: draft.siteInfo,
         contactInfo: { ...draft.contactInfo, name: value },
-        totalAmount: draft.totalAmount,
-      });
+        createdAt: new Date().toISOString(),
+      };
     case "contactPhone":
-      return createOrderDraft({
+      return {
         ...draft,
-        siteInfo: draft.siteInfo,
         contactInfo: { ...draft.contactInfo, phone: value },
-        totalAmount: draft.totalAmount,
-      });
+        createdAt: new Date().toISOString(),
+      };
     default:
       return draft;
   }

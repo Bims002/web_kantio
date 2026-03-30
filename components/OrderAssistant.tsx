@@ -663,7 +663,7 @@ export default function OrderAssistant({
                   <button
                     type="button"
                     onClick={handleFinalize}
-                    disabled={!draft || finalizing || Boolean(draftValidationError)}
+                    disabled={!draft || finalizing}
                     className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-24px_rgba(5,150,105,0.95)] transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {finalizing ? 'Finalisation...' : 'Finaliser la commande'}

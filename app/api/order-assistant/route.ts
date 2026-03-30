@@ -174,8 +174,11 @@ export async function POST(request: Request) {
       "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation. " +
       "Reponses courtes, concretes, en francais. " +
       "IMPORTANT : Ta reponse finale DOIT STRICTEMENT etre un objet JSON contenant seulement 2 cles: \n" +
-      "1. \"message\" : Ta reponse normale en texte clair.\n" +
-      "2. \"suggestions\" : Un tableau de MAX 3 REPONSES que le CLIENT POURRAIT CLIQUER pour repondre. Ce NE SONT PAS des questions. Ex: Si tu demandes 'quel est votre quartier', mets en suggestions ['Mon quartier est Deido', 'Akwa', 'Aucune idee']. NE pose JAMAIS tes questions dans les suggestions !\n" +
+      "1. \"message\" : Ta reponse normale en texte clair (ex: 'Dans quel quartier faut-il livrer ?').\n" +
+      "2. \"suggestions\" : Un tableau de 2 a 3 phrases courtes QUE L'UTILISATEUR POURRAIT CLIQUER POUR TE REPONDRE. Ce ne sont PAS tes questions, ce sont les REPONSES du client !\n" +
+      "   - REGLE D'OR : Si tu poses une question dans le 'message', les 'suggestions' doivent etre les reponses probables a cette question.\n" +
+      "   - EXEMPLE : Si message=\"Dans quel quartier êtes-vous ?\", alors suggestions=[\"Je suis à Akwa\", \"Bastos\", \"Bonapriso\"].\n" +
+      "   - NE JAMAIS METTRE de points d'interrogation dans les suggestions.\n" +
       "Le code retourné doit être du JSON valide strict. Ne rajoute aucun commentaire en dehors du JSON." +
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply

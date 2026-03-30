@@ -20,7 +20,27 @@ export async function POST(request: Request) {
     if (!file) {
       return Response.json({ error: 'Fichier CSV manquant.' }, { status: 400 });
     }
-    const text = await file.text();
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Detect UTF-16LE/BE BOM or fallback to UTF-8
+    let text = '';
+    const hasUtf16leBom = buffer[0] === 0xFF && buffer[1] === 0xFE;
+    const hasUtf16beBom = buffer[0] === 0xFE && buffer[1] === 0xFF;
+
+    if (hasUtf16leBom) {
+      text = buffer.slice(2).toString('utf16le');
+    } else if (hasUtf16beBom) {
+      // Node.js doesn't natively support utf16be, but we can try to fallback
+      // Most Excel exports on Windows are LE.
+      text = buffer.slice(2).toString('utf-8'); 
+    } else {
+      text = buffer.toString('utf-8');
+    }
+
+    // Critical: Strip null bytes and normalize line endings
+    // Some exports (Excel/FB) include null bytes (\0) which break keys and values
+    text = text.replace(/\0/g, '').replace(/\r\n/g, '\n');
     const parseResult = Papa.parse<any>(text, {
       header: true,
       skipEmptyLines: true,
