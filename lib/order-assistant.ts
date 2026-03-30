@@ -27,7 +27,7 @@ export interface DraftCartItem {
 }
 
 export interface OrderDraft {
-  selectedSupplier: DraftSupplier;
+  selectedSupplier?: DraftSupplier;
   cart: DraftCartItem[];
   siteInfo: {
     name: string;
@@ -264,7 +264,7 @@ export function getDraftMaterial(
   draft: OrderDraft,
   materialId: string
 ): DraftSupplierMaterial | undefined {
-  return draft.selectedSupplier.supplier_materials.find(
+  return draft.selectedSupplier?.supplier_materials.find(
     (material) => material.material_id === materialId
   );
 }
@@ -385,7 +385,7 @@ export function applyDraftFieldAnswer(
 
   switch (field) {
     case "siteAddress": {
-      const cityKey = normalizeCityKey(draft.siteInfo.city || draft.selectedSupplier.city);
+      const cityKey = normalizeCityKey(draft.siteInfo.city || (draft.selectedSupplier ? draft.selectedSupplier.city : ''));
       const normalizedQuartier = normalizeAssistantText(value);
       
       let lat = draft.siteInfo.lat;
@@ -412,8 +412,8 @@ export function applyDraftFieldAnswer(
       // If we have coordinates, try to find the absolute BEST supplier for this new location
       if (lat && lng) {
         const bestSupplier = findBestSupplierForLocation(newDraft, context, { lat, lng });
-        if (bestSupplier && bestSupplier.id !== draft.selectedSupplier.id) {
-          console.log(`Re-matching supplier for ${value}: ${draft.selectedSupplier.name} -> ${bestSupplier.name}`);
+        if (bestSupplier && (!draft.selectedSupplier || bestSupplier.id !== draft.selectedSupplier.id)) {
+          console.log(`Re-matching supplier for ${value}: ${draft.selectedSupplier?.name || 'None'} -> ${bestSupplier.name}`);
           newDraft.selectedSupplier = {
             ...bestSupplier,
             phone: "", // Keep client-side draft clean
@@ -526,7 +526,7 @@ export function findMaterialMatches(
       material,
       score: scoreMaterialMatch(query, material),
     }))
-    .filter((match) => match.score >= 20)
+    .filter((match) => match.score >= 15)
     .sort((left, right) => right.score - left.score)
     .slice(0, 5);
 }

@@ -15,7 +15,7 @@ interface ChatMessage {
 function buildDraftSummary(draft: OrderDraft) {
   const items = draft.cart
     .map((item) => {
-      const material = draft.selectedSupplier.supplier_materials.find(
+      const material = draft.selectedSupplier?.supplier_materials.find(
         (entry) => entry.material_id === item.materialId
       );
 
@@ -24,14 +24,14 @@ function buildDraftSummary(draft: OrderDraft) {
     .join(", ");
 
   return [
-    `Fournisseur: ${draft.selectedSupplier.name}`,
+    `Fournisseur: ${draft.selectedSupplier?.name || "Non selectionne"}`,
     `Ville chantier: ${formatCityLabel(draft.siteInfo.city)}`,
     `Quartier de livraison: ${draft.siteInfo.address || "Manquant"}`,
     `Contact: ${draft.contactInfo.name} / ${draft.contactInfo.phone}`,
     `Notes: ${draft.contactInfo.notes || "Aucune"}`,
     `Panier: ${items || "Vide"}`,
     `Total estime: ${draft.totalAmount.toLocaleString("fr-FR")} FCFA`,
-    `Delai fournisseur: ${draft.selectedSupplier.delivery_delay_hours}h`,
+    `Delai fournisseur: ${draft.selectedSupplier?.delivery_delay_hours || "Inconnu"}h`,
   ].join("\n");
 }
 
@@ -42,7 +42,7 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
   const cartSummary =
     draft.cart
       .map((item) => {
-        const material = draft.selectedSupplier.supplier_materials.find(
+        const material = draft.selectedSupplier?.supplier_materials.find(
           (entry) => entry.material_id === item.materialId
         );
 
@@ -71,11 +71,11 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
     text.includes("montant") ||
     text.includes("combien")
   ) {
-    return `Pour l instant, votre commande contient ${cartSummary}. Le total estime est de ${draft.totalAmount.toLocaleString("fr-FR")} FCFA chez ${draft.selectedSupplier.name}.`;
+    return `Pour l instant, votre commande contient ${cartSummary}. Le total estime est de ${draft.totalAmount.toLocaleString("fr-FR")} FCFA chez ${draft.selectedSupplier?.name || "le fournisseur"}.`;
   }
 
   if (text.includes("delai") || text.includes("livraison") || text.includes("quand")) {
-    return `Le fournisseur ${draft.selectedSupplier.name} annonce un delai de ${draft.selectedSupplier.delivery_delay_hours}h. Si vous voulez, je peux aussi verifier si le quartier de livraison est assez clair pour le livreur.`;
+    return `Le fournisseur ${draft.selectedSupplier?.name || "choisi"} annonce un delai de ${draft.selectedSupplier?.delivery_delay_hours || "quelques"}h. Si vous voulez, je peux aussi verifier si le quartier de livraison est assez clair pour le livreur.`;
   }
 
   if (text.includes("panier") || text.includes("materiau") || text.includes("materiaux")) {

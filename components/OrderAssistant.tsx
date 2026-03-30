@@ -168,12 +168,31 @@ export default function OrderAssistant({
 
       if (recommendationContext) {
         sessionStorage.removeItem(STORAGE_KEY);
+        const initialLocationDraft: OrderDraft = {
+          cart: [],
+          siteInfo: {
+            name: '',
+            address: '',
+            city: recommendationContext.city,
+            lat: null,
+            lng: null,
+          },
+          contactInfo: {
+            name: '',
+            phone: '',
+            notes: '',
+          },
+          totalAmount: 0,
+          createdAt: new Date().toISOString(),
+        };
+        setDraft(initialLocationDraft);
         setMessages([
           {
             role: 'assistant',
-            content: buildRecommendationOpeningMessage(recommendationContext.city),
+            content: `Bonjour ! Avant de commencer, dans quel quartier de ${formatCityLabel(recommendationContext.city)} se trouve votre chantier ?`,
           },
         ]);
+        return;
       }
     } catch (error) {
       console.error('Draft loading error', error);
@@ -450,8 +469,38 @@ export default function OrderAssistant({
     setLoadingReply(true);
     setErrorMessage('');
 
-    // Check for a recommendation flow FIRST, even if draft exists.
-    // This allows searching for a new material while keeping site info.
+    if (draft && nextDraftField) {
+      const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
+      
+      if (validation.isValid && recommendationContext) {
+        const updatedDraft = applyDraftFieldAnswer(
+          draft,
+          nextDraftField,
+          validation.normalizedValue,
+          recommendationContext
+        );
+
+        const supplierChanged = updatedDraft.selectedSupplier && draft.selectedSupplier && 
+                              updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
+        
+        let reply = '';
+        if (supplierChanged && updatedDraft.selectedSupplier) {
+          reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouve un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
+                  `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
+                  `Voulez-vous continuer ?`;
+        }
+
+        setDraft(updatedDraft);
+        await queueAssistantReply({
+          nextUserMessage,
+          preferredReply: reply || undefined,
+          draftOverride: updatedDraft,
+        });
+        return;
+      }
+    }
+
+    // 2. If no field was definitively answered, try recommendation flow (material search).
     if (recommendationContext) {
       const siteCoords =
         typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
@@ -468,42 +517,6 @@ export default function OrderAssistant({
         });
         return;
       }
-    }
-
-    if (draft && nextDraftField && looksLikeFieldAnswer(nextUserMessage.content, nextDraftField)) {
-      const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
-
-      if (!validation.isValid) {
-        await queueAssistantReply({
-          nextUserMessage,
-          preferredReply: `${validation.error} ${nextDraftQuestion || ''}`.trim(),
-        });
-        return;
-      }
-
-      const updatedDraft = applyDraftFieldAnswer(
-        draft,
-        nextDraftField,
-        validation.normalizedValue,
-        recommendationContext!
-      );
-
-      const supplierChanged = updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
-      let reply = buildCaptureReply(updatedDraft);
-
-      if (supplierChanged) {
-        reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouvé un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
-                `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
-                `Voulez-vous continuer ?`;
-      }
-
-      setDraft(updatedDraft);
-      await queueAssistantReply({
-        nextUserMessage,
-        preferredReply: reply,
-        draftOverride: updatedDraft,
-      });
-      return;
     }
 
     await queueAssistantReply({
@@ -536,8 +549,8 @@ export default function OrderAssistant({
           site_address: draft.siteInfo.address,
           contact_name: draft.contactInfo.name,
           contact_phone: draft.contactInfo.phone,
-          supplier_id: draft.selectedSupplier.id,
-          supplier_name: draft.selectedSupplier.name,
+          supplier_id: draft.selectedSupplier?.id,
+          supplier_name: draft.selectedSupplier?.name,
           total_price: draft.totalAmount,
           notes: draft.contactInfo.notes,
         })
@@ -549,7 +562,7 @@ export default function OrderAssistant({
       }
 
       const orderItems = draft.cart.map((item) => {
-        const material = draft.selectedSupplier.supplier_materials.find(
+        const material = draft.selectedSupplier?.supplier_materials.find(
           (entry) => entry.material_id === item.materialId
         );
 
@@ -694,7 +707,7 @@ export default function OrderAssistant({
                 <div className="mt-4 space-y-3 rounded-[24px] bg-kantioo-sand p-4 text-sm text-kantioo-dark">
                   <div className="flex items-center gap-3">
                     <Truck size={16} className="text-kantioo-orange" />
-                    {draft.selectedSupplier.name}
+                    {draft.selectedSupplier?.name || 'En attente'}
                   </div>
                   <div className="flex items-center gap-3">
                     <MapPin size={16} className="text-kantioo-orange" />
