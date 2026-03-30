@@ -1,6 +1,33 @@
 import { Order } from "./types";
 
-export const TEST_WHATSAPP_NUMBER = "0616616340";
+export const TEST_WHATSAPP_NUMBER = "33616616340";
+export const DEFAULT_COUNTRY_CODE = "33";
+
+function formatWhatsAppNumber(phone?: string) {
+  const rawNumber = phone || TEST_WHATSAPP_NUMBER;
+  if (!rawNumber) return "";
+  
+  // Remove non-digits
+  const digits = rawNumber.replace(/\D/g, "");
+  
+  // French format: 06... (10 digits) -> replace 0 with 33
+  if (digits.length === 10 && digits.startsWith("0")) {
+    return `${DEFAULT_COUNTRY_CODE}${digits.slice(1)}`;
+  }
+  
+  // French format: 6... (9 digits) -> prepend 33
+  if (digits.length === 9 && (digits.startsWith("6") || digits.startsWith("7"))) {
+    return `${DEFAULT_COUNTRY_CODE}${digits}`;
+  }
+
+  // Already has country code (e.g. 336... or 2376...)
+  if (digits.length >= 11) {
+    return digits;
+  }
+
+  // Fallback: use digits as is or prepend default if it looks like a local number
+  return digits;
+}
 
 function getAppBaseUrl() {
   if (typeof window !== "undefined" && window.location.origin) {
@@ -16,8 +43,8 @@ export function getOrderTrackingUrl(trackingToken: string) {
   return `${baseUrl}/suivi/${trackingToken}`;
 }
 
-export function buildWhatsAppLink(message: string) {
-  const number = TEST_WHATSAPP_NUMBER.replace(/\D/g, "");
+export function buildWhatsAppLink(message: string, phone?: string) {
+  const number = formatWhatsAppNumber(phone);
   const text = encodeURIComponent(message);
 
   return `https://wa.me/${number}?text=${text}`;

@@ -559,10 +559,20 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                     <p className="mt-1 text-sm text-kantioo-muted">{order.supplier_name || 'Sans fournisseur'} · {(order.total_price || 0).toLocaleString('fr-FR')} FCFA</p>
                   </div>
                   <div className="flex flex-col gap-3 xl:w-[320px]">
-                    <a href={buildWhatsAppLink(generateWhatsAppMessage(order))} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-kantioo-green px-5 py-3 text-sm font-semibold text-white">
-                      <MessageSquare size={16} />
-                      WhatsApp
-                    </a>
+                    {(() => {
+                      const supplier = suppliers.find((s) => s.id === order.supplier_id);
+                      return (
+                        <a
+                          href={buildWhatsAppLink(generateWhatsAppMessage(order), supplier?.phone)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-kantioo-green px-5 py-3 text-sm font-semibold text-white"
+                        >
+                          <MessageSquare size={16} />
+                          WhatsApp
+                        </a>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 gap-3">
                       <button type="button" onClick={() => void updateOrderStatus(order.id, 'confirmed')} className="action-secondary justify-center gap-2"><CheckCircle size={16} />Confirmer</button>
                       <button type="button" onClick={() => void updateOrderStatus(order.id, 'in_delivery')} className="action-secondary justify-center gap-2"><Truck size={16} />Livraison</button>
