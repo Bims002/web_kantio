@@ -1,3 +1,4 @@
+import { normalizeCityKey } from "./cities";
 import { calculateDistance, scoreSupplier } from "./scoring";
 import type { Supplier } from "./types";
 
@@ -32,6 +33,8 @@ export interface OrderDraft {
     name: string;
     address: string;
     city: string;
+    lat: number | null;
+    lng: number | null;
   };
   contactInfo: {
     name: string;
@@ -78,6 +81,35 @@ interface DraftFieldValidationResult {
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   douala: { lat: 4.05, lng: 9.7 },
   yaounde: { lat: 3.86, lng: 11.5 },
+};
+
+const QUARTIER_COORDS: Record<string, Record<string, { lat: number; lng: number }>> = {
+  douala: {
+    akwa: { lat: 4.0508, lng: 9.6963 },
+    bonapriso: { lat: 4.0321, lng: 9.6974 },
+    deido: { lat: 4.0617, lng: 9.7075 },
+    bonamoussadi: { lat: 4.0927, lng: 9.7402 },
+    logpom: { lat: 4.1026, lng: 9.7495 },
+    ndokoti: { lat: 4.0492, lng: 9.7391 },
+    bassa: { lat: 4.0458, lng: 9.7483 },
+    bali: { lat: 4.0416, lng: 9.6922 },
+    kotto: { lat: 4.1084, lng: 9.7583 },
+    japoma: { lat: 4.0152, lng: 9.7947 },
+    makepe: { lat: 4.0812, lng: 9.7541 },
+  },
+  yaounde: {
+    bastos: { lat: 3.894, lng: 11.5109 },
+    mvan: { lat: 3.8122, lng: 11.5158 },
+    messassi: { lat: 3.9312, lng: 11.5284 },
+    odza: { lat: 3.7945, lng: 11.5412 },
+    tsinga: { lat: 3.8821, lng: 11.4984 },
+    efoulan: { lat: 3.8214, lng: 11.4984 },
+    mendong: { lat: 3.8342, lng: 11.4782 },
+    biem_assi: { lat: 3.8412, lng: 11.4884 },
+    ngo_eke: { lat: 3.8542, lng: 11.5312 },
+    mimboman: { lat: 3.8642, lng: 11.5512 },
+    mvog_bi: { lat: 3.8412, lng: 11.5112 },
+  },
 };
 
 const REQUIRED_FIELD_CONFIG: Record<
@@ -215,6 +247,8 @@ export function createOrderDraft(input: {
       name: input.siteInfo?.name || "",
       address: input.siteInfo?.address || "",
       city: input.siteInfo?.city || input.selectedSupplier.city,
+      lat: input.siteInfo?.lat ?? null,
+      lng: input.siteInfo?.lng ?? null,
     },
     contactInfo: {
       name: input.contactInfo?.name || "",
@@ -341,33 +375,123 @@ export function validateDraftFieldAnswer(
 export function applyDraftFieldAnswer(
   draft: OrderDraft,
   field: RequiredDraftField,
-  rawValue: string
+  rawValue: string,
+  context: RecommendationContext
 ): OrderDraft {
   const validation = validateDraftFieldAnswer(field, rawValue);
   const value = validation.isValid ? validation.normalizedValue : rawValue;
 
+  let newDraft: OrderDraft = { ...draft };
+
   switch (field) {
-    case "siteAddress":
-      return {
+    case "siteAddress": {
+      const cityKey = normalizeCityKey(draft.siteInfo.city || draft.selectedSupplier.city);
+      const normalizedQuartier = normalizeAssistantText(value);
+      
+      let lat = draft.siteInfo.lat;
+      let lng = draft.siteInfo.lng;
+
+      // Try local dictionary
+      const cityQuartiers = QUARTIER_COORDS[cityKey];
+      if (cityQuartiers) {
+        // Direct match or partial match
+        const foundKey = Object.keys(cityQuartiers).find(k => normalizedQuartier.includes(k) || k.includes(normalizedQuartier));
+        if (foundKey) {
+          lat = cityQuartiers[foundKey].lat;
+          lng = cityQuartiers[foundKey].lng;
+          console.log(`Geocoding local match: ${value} -> ${lat}, ${lng}`);
+        }
+      }
+
+      newDraft = {
         ...draft,
-        siteInfo: { ...draft.siteInfo, address: value },
+        siteInfo: { ...draft.siteInfo, address: value, lat, lng },
         createdAt: new Date().toISOString(),
       };
+      
+      // If we have coordinates, try to find the absolute BEST supplier for this new location
+      if (lat && lng) {
+        const bestSupplier = findBestSupplierForLocation(newDraft, context, { lat, lng });
+        if (bestSupplier && bestSupplier.id !== draft.selectedSupplier.id) {
+          console.log(`Re-matching supplier for ${value}: ${draft.selectedSupplier.name} -> ${bestSupplier.name}`);
+          newDraft.selectedSupplier = {
+            ...bestSupplier,
+            phone: "", // Keep client-side draft clean
+          };
+        }
+      }
+      break;
+    }
     case "contactName":
-      return {
+      newDraft = {
         ...draft,
         contactInfo: { ...draft.contactInfo, name: value },
         createdAt: new Date().toISOString(),
       };
+      break;
     case "contactPhone":
-      return {
+      newDraft = {
         ...draft,
         contactInfo: { ...draft.contactInfo, phone: value },
         createdAt: new Date().toISOString(),
       };
-    default:
-      return draft;
+      break;
   }
+
+  return newDraft;
+}
+
+export function findBestSupplierForLocation(
+  draft: OrderDraft,
+  context: RecommendationContext,
+  siteCoords: { lat: number; lng: number }
+): RecommendationSupplier | null {
+  const { suppliers } = context;
+  if (!suppliers.length) return null;
+
+  // We only consider suppliers in the same city
+  const cityKey = normalizeCityKey(draft.siteInfo.city);
+  const citySuppliers = suppliers.filter(s => normalizeCityKey(s.city) === cityKey);
+  
+  if (!citySuppliers.length) return null;
+
+  // For each supplier, we compute a total score based on the materials in the cart
+  const scored = citySuppliers.map(supplier => {
+    // 1. Availability check: does it have at least some of the items?
+    const availableItems = draft.cart.filter(item => 
+      supplier.supplier_materials.some(sm => sm.material_id === item.materialId)
+    );
+    
+    if (availableItems.length === 0) return { supplier, score: -1 };
+
+    // 2. Compute a global score for all items in the cart
+    // Since scoreSupplier is per-material, we average or sum?
+    // Let's take the first item as a simplified priority or average them.
+    let totalScore = 0;
+    const allPrices = suppliers.flatMap(s => s.supplier_materials.map(m => m.price));
+    const allDistances = suppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
+
+    availableItems.forEach(item => {
+      totalScore += scoreSupplier({
+        supplier,
+        siteCoords,
+        materialId: item.materialId,
+        allPrices,
+        allDistances
+      });
+    });
+
+    // Bonus for having MORE items from the cart
+    const coverageBonus = (availableItems.length / draft.cart.length) * 20;
+
+    return { 
+      supplier, 
+      score: (totalScore / availableItems.length) + coverageBonus 
+    };
+  });
+
+  const winners = scored.sort((a, b) => b.score - a.score);
+  return winners[0]?.score > 0 ? winners[0].supplier : null;
 }
 
 export function validateOrderDraft(draft: OrderDraft | null): string | null {

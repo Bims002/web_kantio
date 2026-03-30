@@ -10,12 +10,14 @@ interface Props {
   suppliers: Supplier[];
   center?: [number, number];
   zoom?: number;
+  siteCoords?: { lat: number; lng: number } | null;
 }
 
 export default function SupplierMap({
   suppliers,
   center = [11.5167, 3.8667],
   zoom = 6,
+  siteCoords = null,
 }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -42,12 +44,12 @@ export default function SupplierMap({
       const markerNode = document.createElement('button');
       markerNode.type = 'button';
       markerNode.setAttribute('aria-label', supplier.name);
-      markerNode.style.width = '20px';
-      markerNode.style.height = '20px';
+      markerNode.style.width = '18px';
+      markerNode.style.height = '18px';
       markerNode.style.borderRadius = '999px';
-      markerNode.style.border = '3px solid white';
+      markerNode.style.border = '2.5px solid white';
       markerNode.style.background = '#e8650a';
-      markerNode.style.boxShadow = '0 12px 24px -12px rgba(27, 19, 12, 0.7)';
+      markerNode.style.boxShadow = '0 8px 16px -8px rgba(27, 19, 12, 0.7)';
 
       new mapboxgl.Marker(markerNode)
         .setLngLat([supplier.lng, supplier.lat])
@@ -68,11 +70,42 @@ export default function SupplierMap({
         .addTo(nextMap);
     });
 
+    // Add SITE marker if coordinates exist
+    if (siteCoords) {
+      const siteNode = document.createElement('div');
+      siteNode.style.width = '24px';
+      siteNode.style.height = '24px';
+      siteNode.style.borderRadius = '999px';
+      siteNode.style.border = '4px solid white';
+      siteNode.style.background = '#3b82f6'; // Blue for site
+      siteNode.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.4)';
+      siteNode.className = 'animate-pulse';
+
+      new mapboxgl.Marker(siteNode)
+        .setLngLat([siteCoords.lng, siteCoords.lat])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 24 }).setHTML(`
+            <div style="padding: 10px; font-family: sans-serif; text-align: center;">
+              <div style="font-weight: 800; color: #1e3a8a;">VOTRE CHANTIER</div>
+              <div style="font-size: 12px; color: #475569; margin-top: 4px;">Emplacement détecté par l'assistant</div>
+            </div>
+          `)
+        )
+        .addTo(nextMap);
+
+      // Center on site
+      nextMap.flyTo({
+        center: [siteCoords.lng, siteCoords.lat],
+        zoom: 13,
+        essential: true
+      });
+    }
+
     return () => {
       nextMap.remove();
       map.current = null;
     };
-  }, [center, mapboxToken, suppliers, zoom]);
+  }, [center, mapboxToken, suppliers, zoom, siteCoords]);
 
   if (!mapboxToken || mapboxToken.includes('placeholder')) {
     return (

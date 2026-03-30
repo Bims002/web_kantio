@@ -469,12 +469,26 @@ export default function OrderAssistant({
         return;
       }
 
-      const updatedDraft = applyDraftFieldAnswer(draft, nextDraftField, validation.normalizedValue);
+      const updatedDraft = applyDraftFieldAnswer(
+        draft,
+        nextDraftField,
+        validation.normalizedValue,
+        recommendationContext!
+      );
+
+      const supplierChanged = updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
+      let reply = buildCaptureReply(updatedDraft);
+
+      if (supplierChanged) {
+        reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouvé un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
+                `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
+                `Voulez-vous continuer ?`;
+      }
 
       setDraft(updatedDraft);
       await queueAssistantReply({
         nextUserMessage,
-        preferredReply: buildCaptureReply(updatedDraft),
+        preferredReply: reply,
         draftOverride: updatedDraft,
       });
       return;
@@ -794,6 +808,11 @@ export default function OrderAssistant({
                   suppliers={compatibleSuppliers}
                   center={mapCenter}
                   zoom={mapZoom}
+                  siteCoords={
+                    typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
+                      ? { lat: draft.siteInfo.lat, lng: draft.siteInfo.lng }
+                      : null
+                  }
                 />
               </div>
 
