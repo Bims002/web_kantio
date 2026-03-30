@@ -32,8 +32,8 @@ export function calculateDistance(
 export function scoreSupplier(params: ScoringParams): number {
   const { supplier, siteCoords, materialId, allPrices, allDistances } = params;
   const distance = calculateDistance(siteCoords, { lat: supplier.lat, lng: supplier.lng });
-  const maxDistance = Math.max(...allDistances, 1);
-  const distanceScore = 50 * (1 - distance / maxDistance);
+  // Exponential decay for distance: 60 points if distance is 0, drops significantly after 4km
+  const distanceScore = 60 * Math.exp(-distance / 4);
 
   const supplierMaterial = supplier.supplier_materials.find(
     (material) => material.material_id === materialId

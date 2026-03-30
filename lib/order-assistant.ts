@@ -401,7 +401,7 @@ export function applyDraftFieldAnswer(
       // Try local dictionary
       const cityQuartiers = QUARTIER_COORDS[cityKey];
       if (cityQuartiers) {
-        // Direct match or partial match
+        // Direct match or partial match (case-insensitive via normalizedQuartier)
         const foundKey = Object.keys(cityQuartiers).find(k => normalizedQuartier.includes(k) || k.includes(normalizedQuartier));
         if (foundKey) {
           lat = cityQuartiers[foundKey].lat;
@@ -553,11 +553,15 @@ export function recommendSupplierForMaterial(input: {
   materialId: string;
   quantity: number;
   siteCoords?: { lat: number; lng: number } | null;
+  existingSiteInfo?: OrderDraft["siteInfo"];
 }) {
-  const { context, materialId, quantity, siteCoords: siteCoordsOverride } = input;
+  const { context, materialId, quantity, siteCoords: siteCoordsOverride, existingSiteInfo } = input;
   const cityKey = normalizeAssistantText(context.city);
   const siteCoords = siteCoordsOverride || CITY_COORDS[cityKey] || CITY_COORDS.douala;
+  // 1. Filter by city first (ensure we are in the same city context)
+  const contextCityKey = normalizeCityKey(context.city);
   const eligibleSuppliers = context.suppliers.filter((supplier) =>
+    normalizeCityKey(supplier.city) === contextCityKey &&
     supplier.supplier_materials.some((item) => item.material_id === materialId)
   );
 
@@ -609,7 +613,7 @@ export function recommendSupplierForMaterial(input: {
     draft: createOrderDraft({
       selectedSupplier: best.supplier,
       cart: [{ materialId, quantity }],
-      siteInfo: { city: context.city },
+      siteInfo: existingSiteInfo || { city: context.city },
     }),
   };
 }

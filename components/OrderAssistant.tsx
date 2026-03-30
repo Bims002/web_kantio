@@ -362,6 +362,7 @@ export default function OrderAssistant({
         materialId: pendingRecommendationMaterial.id,
         quantity,
         siteCoords,
+        existingSiteInfo: draft?.siteInfo,
       });
 
       if (!recommendation) {
@@ -429,6 +430,7 @@ export default function OrderAssistant({
       materialId: selectedMaterial.id,
       quantity,
       siteCoords,
+      existingSiteInfo: draft?.siteInfo,
     });
 
     if (!recommendation) {
