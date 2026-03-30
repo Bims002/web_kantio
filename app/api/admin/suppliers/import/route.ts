@@ -25,30 +25,46 @@ export async function POST(request: Request) {
       header: true,
       skipEmptyLines: true,
     });
-const rows = parseResult.data as any[];
-const errors = parseResult.errors;
+    const rows = parseResult.data as any[];
+    const errors = parseResult.errors;
 
-    if (errors.length) {
-      return Response.json({ error: 'Erreur de parsing CSV.' }, { status: 400 });
+    if (errors.length > 0) {
+      console.warn('PapaParse warnings:', errors);
     }
 
-    const payloads: Supplier[] = rows.map((row) => ({
-      name: (row.name ?? '').trim(),
-      phone: (row.phone ?? '').trim(),
-      contact_name: row.contact_name?.trim() ?? null,
-      email: row.email?.trim() ?? null,
-      city: row.city?.trim() ?? '',
-      quartier: row.quartier?.trim() ?? null,
-      address: row.address?.trim() ?? null,
-      lat: Number(row.lat) || 0,
-      lng: Number(row.lng) || 0,
-      delivery_radius: Number(row.delivery_radius) || 20,
-      delivery_delay_hours: Number(row.delivery_delay_hours) || 24,
-      stock_availability: row.stock_availability ?? 'permanent',
-      is_active: row.is_active ? String(row.is_active).toLowerCase() === 'true' : true,
-      // @ts-ignore – type may not include this field explicitly
-      delivery_zones: null,
-    } as Supplier));
+    if (rows.length === 0) {
+      const msg = errors.length > 0 ? errors[0].message : 'Fichier CSV vide ou invalide.';
+      return Response.json({ error: `Erreur de lecture CSV: ${msg}` }, { status: 400 });
+    }
+    const payloads: Supplier[] = rows.map((originalRow) => {
+      // Normaliser les clés (minuscules, sans espaces)
+      const row: any = {};
+      for (const [key, value] of Object.entries(originalRow)) {
+        if (key) row[key.toLowerCase().trim()] = value;
+      }
+
+      const name = row.name || row.nom || row.fournisseur || row.supplier || '';
+      const phone = row.phone || row.tel || row.téléphone || row.phone_number || row.mobile || '';
+      const city = row.city || row.ville || '';
+
+      return {
+        name: name.trim(),
+        phone: phone.trim(),
+        contact_name: row.contact_name?.trim() ?? row.contact?.trim() ?? null,
+        email: row.email?.trim() ?? null,
+        city: city.trim() ?? 'Douala',
+        quartier: row.quartier?.trim() ?? null,
+        address: row.address?.trim() ?? row.adresse?.trim() ?? null,
+        lat: Number(row.lat) || Number(row.latitude) || 0,
+        lng: Number(row.lng) || Number(row.longitude) || 0,
+        delivery_radius: Number(row.delivery_radius) || Number(row.rayon) || 20,
+        delivery_delay_hours: Number(row.delivery_delay_hours) || Number(row.delai) || 24,
+        stock_availability: row.stock_availability ?? row.stock ?? 'permanent',
+        is_active: row.is_active ? String(row.is_active).toLowerCase() === 'true' : true,
+        // @ts-ignore – type may not include this field explicitly
+        delivery_zones: null,
+      } as Supplier;
+    });
 
     for (const p of payloads) {
       if (!p.name || !p.phone || !p.city) {
