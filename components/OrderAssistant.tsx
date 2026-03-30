@@ -320,7 +320,10 @@ export default function OrderAssistant({
     setLoadingReply(false);
   };
 
-  const handleRecommendationFlow = (userMessage: string) => {
+  const handleRecommendationFlow = (
+    userMessage: string,
+    siteCoords?: { lat: number; lng: number } | null
+  ) => {
     if (!recommendationContext) {
       return null;
     }
@@ -339,6 +342,7 @@ export default function OrderAssistant({
         context: recommendationContext,
         materialId: pendingRecommendationMaterial.id,
         quantity,
+        siteCoords,
       });
 
       if (!recommendation) {
@@ -405,6 +409,7 @@ export default function OrderAssistant({
       context: recommendationContext,
       materialId: selectedMaterial.id,
       quantity,
+      siteCoords,
     });
 
     if (!recommendation) {
@@ -445,8 +450,15 @@ export default function OrderAssistant({
     setLoadingReply(true);
     setErrorMessage('');
 
-    if (!draft && recommendationContext) {
-      const recommendationReply = handleRecommendationFlow(nextUserMessage.content);
+    // Check for a recommendation flow FIRST, even if draft exists.
+    // This allows searching for a new material while keeping site info.
+    if (recommendationContext) {
+      const siteCoords =
+        typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
+          ? { lat: draft.siteInfo.lat, lng: draft.siteInfo.lng }
+          : null;
+
+      const recommendationReply = handleRecommendationFlow(nextUserMessage.content, siteCoords);
 
       if (recommendationReply) {
         await queueAssistantReply({

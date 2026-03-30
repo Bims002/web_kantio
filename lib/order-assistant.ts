@@ -468,8 +468,8 @@ export function findBestSupplierForLocation(
     // Since scoreSupplier is per-material, we average or sum?
     // Let's take the first item as a simplified priority or average them.
     let totalScore = 0;
-    const allPrices = suppliers.flatMap(s => s.supplier_materials.map(m => m.price));
-    const allDistances = suppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
+    const allPrices = citySuppliers.flatMap(s => s.supplier_materials.map(m => m.price));
+    const allDistances = citySuppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
 
     availableItems.forEach(item => {
       totalScore += scoreSupplier({
@@ -545,10 +545,11 @@ export function recommendSupplierForMaterial(input: {
   context: RecommendationContext;
   materialId: string;
   quantity: number;
+  siteCoords?: { lat: number; lng: number } | null;
 }) {
-  const { context, materialId, quantity } = input;
+  const { context, materialId, quantity, siteCoords: siteCoordsOverride } = input;
   const cityKey = normalizeAssistantText(context.city);
-  const siteCoords = CITY_COORDS[cityKey] || CITY_COORDS.douala;
+  const siteCoords = siteCoordsOverride || CITY_COORDS[cityKey] || CITY_COORDS.douala;
   const eligibleSuppliers = context.suppliers.filter((supplier) =>
     supplier.supplier_materials.some((item) => item.material_id === materialId)
   );

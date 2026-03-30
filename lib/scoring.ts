@@ -33,21 +33,21 @@ export function scoreSupplier(params: ScoringParams): number {
   const { supplier, siteCoords, materialId, allPrices, allDistances } = params;
   const distance = calculateDistance(siteCoords, { lat: supplier.lat, lng: supplier.lng });
   const maxDistance = Math.max(...allDistances, 1);
-  const distanceScore = 40 * (1 - distance / maxDistance);
+  const distanceScore = 50 * (1 - distance / maxDistance);
 
   const supplierMaterial = supplier.supplier_materials.find(
     (material) => material.material_id === materialId
   );
   const price = supplierMaterial?.price ?? Infinity;
   const maxPrice = Math.max(...allPrices, 1);
-  const priceScore = price === Infinity ? 0 : 35 * (1 - price / maxPrice);
+  const priceScore = price === Infinity ? 0 : 30 * (1 - price / maxPrice);
 
   const stockScore =
     supplier.stock_availability === "permanent"
-      ? 25
+      ? 20
       : supplier.stock_availability === "partial"
-        ? 15
-        : 5;
+        ? 12
+        : 4;
 
   return Math.round(Math.max(0, distanceScore + priceScore + stockScore));
 }
