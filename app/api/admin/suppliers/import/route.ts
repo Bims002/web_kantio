@@ -102,13 +102,17 @@ export async function POST(request: Request) {
       } as Supplier;
     });
 
-    // Filtrer les lignes incompletes sans tout faire planter
-    const validPayloads = payloads.filter(p => p.name && p.phone && p.city);
+    // Filtrer les lignes incompletes sans tout faire planter (on garde ceux qui ont au moins un numéro de tél pour le upsert)
+    const validPayloads = payloads.filter(p => p.phone && p.phone.length > 3);
 
     if (validPayloads.length === 0) {
       const detectedColumns = rows.length > 0 ? Object.keys(rows[0]).join(', ') : 'Aucune';
+      const firstRowSample = rows.length > 0 ? rows[0] : {};
+      
+      console.warn("Payload genere depuis la premiere ligne:", payloads[0]);
+      
       return Response.json({ 
-        error: `Aucun fournisseur valide trouve. Colonnes detectees dans votre CSV : [${detectedColumns}]. Verifiez que vous avez bien des colonnes nommees "Nom", "Tel" et "Ville" (ou equivalent).` 
+        error: `Aucun fournisseur valide trouve. Colonnes detectees : [${detectedColumns}]. L'import a echoue car AUCUNE LIGNE ne possede de numero de telephone valide (colonne 'phone' ou 'whatsapp'). Verifiez vos donnees ! Exemple de la 1ere ligne: ${JSON.stringify(firstRowSample).slice(0, 150)}...` 
       }, { status: 400 });
     }
 
