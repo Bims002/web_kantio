@@ -14,9 +14,11 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   ShoppingBag,
   Trash2,
   Truck,
+  Upload,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -152,6 +154,45 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [supplierForm, setSupplierForm] = useState<SupplierForm>(emptySupplier);
   const [materialForm, setMaterialForm] = useState<MaterialForm>(emptyMaterial);
   const [priceForm, setPriceForm] = useState<PriceForm>(emptyPrice);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const normalizedSearch = searchQuery.toLowerCase().trim();
+
+  const filteredOrders = useMemo(() => {
+    if (!normalizedSearch) return orders;
+    return orders.filter(o => 
+      o.site_name?.toLowerCase().includes(normalizedSearch) ||
+      o.contact_name?.toLowerCase().includes(normalizedSearch) ||
+      o.contact_phone?.toLowerCase().includes(normalizedSearch) ||
+      o.supplier_name?.toLowerCase().includes(normalizedSearch) ||
+      o.tracking_token?.toLowerCase().includes(normalizedSearch)
+    );
+  }, [orders, normalizedSearch]);
+
+  const filteredSuppliers = useMemo(() => {
+    if (!normalizedSearch) return suppliers;
+    return suppliers.filter(s => 
+      s.name.toLowerCase().includes(normalizedSearch) ||
+      s.city.toLowerCase().includes(normalizedSearch) ||
+      s.phone.toLowerCase().includes(normalizedSearch)
+    );
+  }, [suppliers, normalizedSearch]);
+
+  const filteredMaterials = useMemo(() => {
+    if (!normalizedSearch) return materials;
+    return materials.filter(m => 
+      m.name.toLowerCase().includes(normalizedSearch) ||
+      m.category?.toLowerCase().includes(normalizedSearch)
+    );
+  }, [materials, normalizedSearch]);
+
+  const filteredPrices = useMemo(() => {
+    if (!normalizedSearch) return prices;
+    return prices.filter(p => 
+      p.supplier?.name.toLowerCase().includes(normalizedSearch) ||
+      p.material?.name.toLowerCase().includes(normalizedSearch)
+    );
+  }, [prices, normalizedSearch]);
 
   // ---- READ via Supabase anon client (RLS allows SELECT on all tables) ----
 
@@ -369,6 +410,42 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     window.location.reload();
   };
 
+  const handleCsvImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm(`Voulez-vous importer le fichier ${file.name} ?`)) {
+      event.target.value = '';
+      return;
+    }
+
+    setRefreshing(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/admin/suppliers/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || "Erreur lors de l'import");
+      }
+
+      setMessage({ type: 'success', text: `${json.inserted} fournisseurs importes avec succes !` });
+      await refreshAll();
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : "Erreur reseau." });
+    } finally {
+      setRefreshing(false);
+      event.target.value = '';
+    }
+  };
+
   const activeSuppliersCount = suppliers.filter((supplier) => supplier.is_active).length;
 
   if (loading) {
@@ -400,7 +477,10 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSearchQuery('');
+                  }}
                   className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold ${
                     isActive
                       ? 'border-kantioo-dark bg-kantioo-dark text-white'
@@ -451,9 +531,22 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
             </div>
           ) : null}
 
+          <div className="relative">
+            <span className="absolute inset-y-0 left-4 flex items-center text-kantioo-muted">
+              <Search size={20} />
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher..."
+              className="w-full rounded-[20px] border border-kantioo-line bg-white px-5 py-3 pl-12 text-sm text-kantioo-dark shadow-sm outline-none focus:border-kantioo-dark focus:ring-1 focus:ring-kantioo-dark"
+            />
+          </div>
+
           {activeTab === 'orders' ? (
             <div className="space-y-4">
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <div key={order.id} className="panel flex flex-col gap-5 p-6 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-3">
@@ -487,7 +580,24 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
               <section className="panel p-6">
                 {activeTab === 'suppliers' ? (
                   <form onSubmit={saveSupplier} className="space-y-4">
-                    <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{editingSupplierId ? 'Modifier un fournisseur' : 'Ajouter un fournisseur'}</h3>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{editingSupplierId ? 'Modifier un fournisseur' : 'Ajouter un fournisseur'}</h3>
+                      {!editingSupplierId && (
+                        <div className="relative overflow-hidden rounded-full border border-kantioo-line bg-white hover:bg-kantioo-sand">
+                          <input 
+                            type="file" 
+                            accept=".csv" 
+                            onChange={handleCsvImport}
+                            className="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-0"
+                            disabled={refreshing}
+                            title="Importer un CSV"
+                          />
+                          <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-kantioo-dark">
+                            <Upload size={16} /> Importer CSV
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <input value={supplierForm.name} onChange={(event) => setSupplierForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nom du fournisseur" className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none" />
                     <input value={supplierForm.phone} onChange={(event) => setSupplierForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Numero" className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none" />
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -553,7 +663,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
               </section>
 
               <section className="space-y-4">
-                {activeTab === 'suppliers' ? suppliers.map((supplier) => (
+                {activeTab === 'suppliers' ? filteredSuppliers.map((supplier) => (
                   <div key={supplier.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{supplier.name}</h3>
@@ -567,7 +677,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                   </div>
                 )) : null}
 
-                {activeTab === 'materials' ? materials.map((material) => (
+                {activeTab === 'materials' ? filteredMaterials.map((material) => (
                   <div key={material.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{material.icon || '📦'} {material.name}</h3>
@@ -580,7 +690,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                   </div>
                 )) : null}
 
-                {activeTab === 'pricing' ? prices.map((price) => (
+                {activeTab === 'pricing' ? filteredPrices.map((price) => (
                   <div key={price.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{price.supplier?.name || 'Fournisseur'} · {price.material?.name || 'Article'}</h3>
