@@ -590,6 +590,89 @@ export function isConfidentMaterialMatch(matches: MaterialMatch[]) {
   return !second || best.score >= second.score + 18 || best.score >= 90;
 }
 
+// Group materials by category
+export function groupMaterialsByCategory(
+  materials: RecommendationMaterial[]
+): Record<string, RecommendationMaterial[]> {
+  const grouped: Record<string, RecommendationMaterial[]> = {};
+
+  materials.forEach((material) => {
+    const category = material.category || 'divers';
+    if (!grouped[category]) {
+      grouped[category] = [];
+    }
+    grouped[category].push(material);
+  });
+
+  return grouped;
+}
+
+// Find materials in a category that match the query
+export function findMaterialsInCategory(
+  query: string,
+  materials: RecommendationMaterial[]
+): { category: string | null; matches: MaterialMatch[] } {
+  const grouped = groupMaterialsByCategory(materials);
+  
+  // Try to identify the category from query
+  const queryNormalized = normalizeAssistantText(query);
+  let bestCategory: string | null = null;
+  let bestCategoryScore = 0;
+
+  // Score each category
+  for (const [category, _] of Object.entries(grouped)) {
+    const categoryNormalized = normalizeAssistantText(category);
+    const categoryScore = scoreMaterialMatch(query, {
+      id: '',
+      name: category,
+      category,
+      unit: '',
+    });
+
+    if (categoryScore > bestCategoryScore) {
+      bestCategoryScore = categoryScore;
+      bestCategory = category;
+    }
+  }
+
+  // If we found a matching category, search within it
+  if (bestCategory && bestCategoryScore >= 8) {
+    const categoryMaterials = grouped[bestCategory];
+    const matches = categoryMaterials
+      .map((material) => ({
+        material,
+        score: scoreMaterialMatch(query, material),
+      }))
+      .sort((left, right) => right.score - left.score);
+
+    return { category: bestCategory, matches };
+  }
+
+  // No clear category, return empty
+  return { category: null, matches: [] };
+}
+
+// Get all materials from a specific category (for alternative suggestions)
+export function getMaterialsByCategory(
+  categoryName: string,
+  materials: RecommendationMaterial[]
+): RecommendationMaterial[] {
+  const grouped = groupMaterialsByCategory(materials);
+  
+  // Find category case-insensitive
+  const normalizedQuery = normalizeAssistantText(categoryName);
+  const matchedCategory = Object.keys(grouped).find(
+    (cat) => normalizeAssistantText(cat) === normalizedQuery
+  );
+
+  if (!matchedCategory) {
+    return [];
+  }
+
+  return (grouped[matchedCategory] || [])
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function recommendSupplierForMaterial(input: {
   context: RecommendationContext;
   materialId: string;

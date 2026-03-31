@@ -5,6 +5,8 @@ import {
   applyDraftFieldAnswer,
   extractRequestedQuantity,
   findMaterialMatches,
+  findMaterialsInCategory,
+  getMaterialsByCategory,
   getCompatibleSuppliersForMaterial,
   getDraftLines,
   getNextDraftField,
@@ -78,17 +80,20 @@ function buildCaptureReply(draft: OrderDraft) {
   const nextQuestion = getNextDraftQuestion(draft);
 
   if (nextQuestion) {
-    return `C est bien note. ${nextQuestion}`;
+    return `✓ C'est note. ${nextQuestion}`;
   }
 
   return (
-    'Merci, tout ce qu il faut pour finaliser est maintenant reuni. ' +
-    'Si vous voulez, je peux encore verifier le panier, le delai ou la livraison avant validation.'
+    '✓ Parfait! Toutes les informations sont collectees.\n\n' +
+    'Que voulez-vous faire?\n' +
+    '• Ajouter un autre materiau\n' +
+    '• Valider la commande\n' +
+    '• Verifier les details (panier, livraison)'
   );
 }
 
 function buildRecommendationOpeningMessage(city: string) {
-  return `Bonjour. Je peux vous aider a trouver le bon fournisseur pour ${formatCityLabel(city)}. Dites-moi simplement le materiau et la quantite, par exemple "ciment 20" ou "fer 12".`;
+  return `Bienvenue ! 👋 Je suis votre assistant d'achat pour ${formatCityLabel(city)}. Je vais vous trouver les meilleurs fournisseurs rapidement.\n\nDites-moi simplement le materiau ET la quantite, par exemple :\n• "ciment 20" ou "20 sacs de ciment"\n• "sable 5" ou "5 tonnes de sable"\n• "fer 100" ou "100 kg de fer"`;
 }
 
 function buildRecommendationReply(input: {
@@ -103,12 +108,15 @@ function buildRecommendationReply(input: {
     return "Je n ai pas reussi a finaliser la recommandation du fournisseur pour ce materiau. Donnez-moi un autre materiau et je relance l analyse.";
   }
 
+  const nextQuestion = getNextDraftQuestion(recommendation.draft);
+  const priceLine = `${matchedMaterial.price.toLocaleString('fr-FR')} FCFA par ${matchedMaterial.unit}`;
+  const distanceLine = `${recommendation.distanceKm.toFixed(1)} km`;
+  
   return (
-    `J ai analyse ${materialName} pour ${formatCityLabel(city)}. ` +
-    `Le fournisseur qui ressort le mieux est ${recommendation.supplier.name}, avec un score de ${recommendation.score}/100, ` +
-    `${recommendation.distanceKm.toFixed(1)} km estimes, ${recommendation.supplier.delivery_delay_hours}h de delai annonce, ` +
-    `et ${matchedMaterial.price.toLocaleString('fr-FR')} FCFA par ${matchedMaterial.unit}. ` +
-    `${getNextDraftQuestion(recommendation.draft) || ''}`.trim()
+    `✅ ${recommendation.supplier.name}\n` +
+    `📍 ${distanceLine}\n` +
+    `💰 ${priceLine}\n\n` +
+    `${nextQuestion || "Confirmer cette commande ?"}`.trim()
   );
 }
 
@@ -141,6 +149,8 @@ export default function OrderAssistant({
   const [pendingRecommendationMaterial, setPendingRecommendationMaterial] =
     useState<RecommendationMaterial | null>(null);
   const [suggestedMaterials, setSuggestedMaterials] = useState<RecommendationMaterial[]>([]);
+  const [detectedCategory, setDetectedCategory] = useState<string | null>(null);
+  const [alternativeMaterials, setAlternativeMaterials] = useState<RecommendationMaterial[]>([]);
 
   useEffect(() => {
     try {
@@ -377,6 +387,8 @@ export default function OrderAssistant({
       setDraft(recommendation.draft);
       setPendingRecommendationMaterial(null);
       setSuggestedMaterials([]);
+      setDetectedCategory(null);
+      setAlternativeMaterials([]);
 
       return {
         draftOverride: recommendation.draft,
@@ -394,23 +406,52 @@ export default function OrderAssistant({
     );
 
     if (!matches.length) {
+      // Try to find materials by category
+      const categorySearch = findMaterialsInCategory(
+        userMessage,
+        recommendationContext.materials
+      );
+
+      if (categorySearch.category && categorySearch.matches.length > 0) {
+        // Found a category with matches
+        const alternatives = getMaterialsByCategory(
+          categorySearch.category,
+          recommendationContext.materials
+        );
+
+        if (alternatives.length > 0) {
+          setDetectedCategory(categorySearch.category);
+          setAlternativeMaterials(alternatives);
+          setSuggestedMaterials(alternatives);
+
+          const list = alternatives.slice(0, 5).map((m) => m.name).join(', ');
+          return {
+            draftOverride: null,
+            reply: `Je n'ai pas trouve "${userMessage}" exactement, mais voici les ${categorySearch.category} disponibles :\n${list}\n\nLequel vous interesse ?`,
+          };
+        }
+      }
+
       setSuggestedMaterials([]);
+      setDetectedCategory(null);
+      setAlternativeMaterials([]);
       return {
         draftOverride: null,
         reply:
-          'Je n ai pas reconnu le materiau. Donnez-moi un nom simple comme ciment, sable, gravier ou fer, avec la quantite si vous l avez.',
+          'Je n\'ai pas trouve ce materiau. Essayez un nom simple :\nciment, sable, gravier, fer, beton, tuile, fil...\n\nN\'oubliez pas la quantite : "20 sacs deciment" ou "5 tonnes de sable"',
       };
     }
 
     if (!isConfidentMaterialMatch(matches)) {
       const topSuggestions = matches.slice(0, 3).map((match) => match.material);
       setSuggestedMaterials(topSuggestions);
+      setDetectedCategory(null);
+      setAlternativeMaterials([]);
 
+      const list = topSuggestions.map((material) => material.name).join(', ');
       return {
         draftOverride: null,
-        reply: `J ai repere plusieurs materiaux proches: ${topSuggestions
-          .map((material) => material.name)
-          .join(', ')}. Lequel voulez-vous exactement ?`,
+        reply: `J'ai plusieurs options pour vous :\n${list}\n\nLequel exactement ?`,
       };
     }
 
@@ -419,9 +460,11 @@ export default function OrderAssistant({
     if (!quantity) {
       setPendingRecommendationMaterial(selectedMaterial);
       setSuggestedMaterials([]);
+      setDetectedCategory(null);
+      setAlternativeMaterials([]);
       return {
         draftOverride: null,
-        reply: `J ai bien compris ${selectedMaterial.name}. Quelle quantite souhaitez-vous commander ?`,
+        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20, 100, 5...)`  
       };
     }
 
@@ -437,12 +480,14 @@ export default function OrderAssistant({
       return {
         draftOverride: null,
         reply:
-          "Je n ai pas trouve de fournisseur actif pour ce materiau dans cette ville. Donnez-moi un autre materiau et je relance l analyse.",
+          "Desolé, je n'ai pas trouve de fournisseur disponible pour ce materiau en ce moment.\n\nEssayez un autre materiau ou verifiez votre localisation.",
       };
     }
 
     setDraft(recommendation.draft);
     setSuggestedMaterials([]);
+    setDetectedCategory(null);
+    setAlternativeMaterials([]);
 
     return {
       draftOverride: recommendation.draft,
