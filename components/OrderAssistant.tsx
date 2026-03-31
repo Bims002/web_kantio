@@ -33,8 +33,12 @@ import {
   LoaderCircle,
   MapPin,
   MessageSquare,
+  Package,
+  Tags,
   Truck,
   User,
+  Users,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -46,6 +50,16 @@ interface ChatMessage {
 
 const STORAGE_KEY = 'kantioo-order-draft';
 const ASSISTANT_TYPING_DELAY_MS = 3000;
+
+type FilterType = 'all' | 'orders' | 'suppliers' | 'materials' | 'prices';
+
+const FILTER_CONFIG: { key: FilterType; label: string; icon: React.ElementType; color: string }[] = [
+  { key: 'all', label: 'Tout', icon: MessageSquare, color: 'bg-kantioo-dark text-white' },
+  { key: 'orders', label: 'Commandes', icon: Package, color: 'bg-blue-600 text-white' },
+  { key: 'suppliers', label: 'Fournisseurs', icon: Users, color: 'bg-emerald-600 text-white' },
+  { key: 'materials', label: 'Matériaux', icon: Truck, color: 'bg-amber-600 text-white' },
+  { key: 'prices', label: 'Prix', icon: Tags, color: 'bg-purple-600 text-white' },
+];
 
 function wait(durationMs: number) {
   return new Promise((resolve) => {
@@ -152,6 +166,7 @@ export default function OrderAssistant({
   const [suggestedMaterials, setSuggestedMaterials] = useState<RecommendationMaterial[]>([]);
   const [detectedCategory, setDetectedCategory] = useState<string | null>(null);
   const [alternativeMaterials, setAlternativeMaterials] = useState<RecommendationMaterial[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     try {
@@ -295,6 +310,16 @@ export default function OrderAssistant({
       };
     }
 
+    const filterContextMap: Record<FilterType, string> = {
+      all: '',
+      orders: '[Contexte: L\'utilisateur souhaite des informations sur les COMMANDES]',
+      suppliers: '[Contexte: L\'utilisateur souhaite des informations sur les FOURNISSEURS]',
+      materials: '[Contexte: L\'utilisateur souhaite des informations sur les MATERIAUX]',
+      prices: '[Contexte: L\'utilisateur souhaite des informations sur les PRIX]',
+    };
+
+    const filterContext = activeFilter !== 'all' ? filterContextMap[activeFilter] : '';
+
     try {
       const response = await fetch('/api/order-assistant', {
         method: 'POST',
@@ -306,6 +331,7 @@ export default function OrderAssistant({
           draft: requestDraft,
           messages: [...messages, nextUserMessage],
           preferredReply,
+          filterContext,
         }),
       });
 
@@ -705,7 +731,7 @@ export default function OrderAssistant({
                 <div key={`${message.role}-${index}`} className="flex flex-col gap-1">
                   <div className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
                     <div
-                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${message.role === 'assistant'
+                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 whitespace-pre-line ${message.role === 'assistant'
                           ? 'bg-kantioo-sand text-kantioo-dark'
                           : 'bg-kantioo-dark text-white'
                         }`}
@@ -714,7 +740,7 @@ export default function OrderAssistant({
                         {message.role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
                         {message.role === 'assistant' ? 'Assistant' : 'Vous'}
                       </div>
-                      <p>{message.content}</p>
+                      <p className="whitespace-pre-line break-words">{message.content}</p>
                     </div>
                   </div>
                 </div>
@@ -738,29 +764,61 @@ export default function OrderAssistant({
             </div>
 
             <div className="border-t border-kantioo-line px-6 py-5 sm:px-8">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Ex: Akwa, explique le delai, manque-t-il une information ?"
-                  className="min-h-[96px] flex-1 rounded-[22px] border border-kantioo-line bg-white px-4 py-4 text-sm text-kantioo-dark outline-none"
-                />
-                <div className="flex flex-col gap-3 sm:w-[220px]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-3">
+                <div className="flex-1 rounded-[22px] border border-kantioo-line bg-white p-3">
+                  <div className="flex flex-wrap gap-1.5 mb-2 pb-1">
+                    {FILTER_CONFIG.map((filter) => {
+                      const Icon = filter.icon;
+                      const isActive = activeFilter === filter.key;
+                      return (
+                        <button
+                          key={filter.key}
+                          type="button"
+                          onClick={() => setActiveFilter(filter.key)}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.65rem] font-semibold transition-all ${
+                            isActive
+                              ? filter.color + ' shadow-sm'
+                              : 'bg-kantioo-sand/60 text-kantioo-muted hover:bg-kantioo-sand hover:text-kantioo-dark'
+                          }`}
+                        >
+                          <Icon size={11} />
+                          {filter.label}
+                        </button>
+                      );
+                    })}
+                    {activeFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('all')}
+                        className="inline-flex items-center gap-0.5 rounded-full bg-kantioo-muted/20 px-1.5 py-1 text-[0.6rem] font-medium text-kantioo-muted hover:bg-kantioo-muted/30"
+                      >
+                        <X size={9} />
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="Ex: Akwa, explique le delai, manque-t-il une information ?"
+                    className="w-full min-h-[72px] resize-none bg-transparent text-sm text-kantioo-dark outline-none placeholder:text-kantioo-muted/60"
+                  />
+                </div>
+                <div className="flex flex-col gap-3 sm:w-[200px] sm:pt-6 sm:shrink-0">
                   <button
                     type="button"
                     onClick={handleSend}
                     disabled={(!draft && !recommendationContext) || !input.trim() || loadingReply}
-                    className="action-primary gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="action-primary gap-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Envoyer
-                    <ArrowRight size={16} />
+                    <ArrowRight size={15} />
                   </button>
                   <button
                     type="button"
                     onClick={handleFinalize}
                     disabled={!draft || finalizing || Boolean(nextDraftField)}
-                    className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${!nextDraftField && draft
-                        ? 'bg-emerald-600 shadow-[0_18px_36px_-24px_rgba(5,150,105,0.95)] hover:-translate-y-0.5 hover:bg-emerald-700'
+                    className={`inline-flex items-center justify-center rounded-full px-4 py-2.5 text-xs font-semibold text-white transition-all ${!nextDraftField && draft
+                        ? 'bg-emerald-600 shadow-[0_12px_24px_-18px_rgba(5,150,105,0.8)] hover:-translate-y-0.5 hover:bg-emerald-700'
                         : 'bg-kantioo-muted opacity-40 cursor-not-allowed'
                       }`}
                   >

@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       draft?: OrderDraft;
       messages?: ChatMessage[];
       preferredReply?: string;
+      filterContext?: string;
     };
 
     if (!body.messages?.length || (!body.draft && !body.preferredReply)) {
@@ -166,6 +167,8 @@ export async function POST(request: Request) {
       return Response.json({ message: body.preferredReply || fallback });
     }
 
+    const filterInstruction = body.filterContext ? `\n${body.filterContext}` : "";
+
     const instructions =
       "Tu es l'assistant de commande Kantioo. " +
       "Tu aides uniquement sur la commande en cours: panier, quantites, prix, fournisseur, delai, livraison, contact, prochaines etapes et finalisation. " +
@@ -181,7 +184,8 @@ export async function POST(request: Request) {
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply
         ? `\n\nBase factuelle a reformuler naturellement:\n${body.preferredReply}`
-        : "");
+        : "") +
+      filterInstruction;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
