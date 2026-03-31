@@ -111,7 +111,7 @@ function buildRecommendationReply(input: {
   const nextQuestion = getNextDraftQuestion(recommendation.draft);
   const priceLine = `${matchedMaterial.price.toLocaleString('fr-FR')} FCFA par ${matchedMaterial.unit}`;
   const distanceLine = `${recommendation.distanceKm.toFixed(1)} km`;
-  
+
   return (
     `✅ ${recommendation.supplier.name}\n` +
     `📍 ${distanceLine}\n` +
@@ -270,14 +270,13 @@ export default function OrderAssistant({
   const mapZoom = recommendationContext ? 10 : 6;
   const recommendationSummary = recommendationContext
     ? [
-        `Ville de recherche: ${formatCityLabel(recommendationContext.city)}`,
-        `Materiau compris: ${activeMaterial?.name || 'Non confirme'}`,
-        `Suggestions en cours: ${
-          suggestedMaterials.length
-            ? suggestedMaterials.map((material) => material.name).join(', ')
-            : 'Aucune'
-        }`,
-      ].join('\n')
+      `Ville de recherche: ${formatCityLabel(recommendationContext.city)}`,
+      `Materiau compris: ${activeMaterial?.name || 'Non confirme'}`,
+      `Suggestions en cours: ${suggestedMaterials.length
+        ? suggestedMaterials.map((material) => material.name).join(', ')
+        : 'Aucune'
+      }`,
+    ].join('\n')
     : undefined;
 
   const resolveAssistantReply = async (input: {
@@ -464,7 +463,7 @@ export default function OrderAssistant({
       setAlternativeMaterials([]);
       return {
         draftOverride: null,
-        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20, 100, 5...)`  
+        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20, 100, 5...)`
       };
     }
 
@@ -520,7 +519,7 @@ export default function OrderAssistant({
     // However, if we are waiting for materialSearch, we skip this to allow recommendation flow logic.
     if (draft && nextDraftField && nextDraftField !== 'materialSearch') {
       const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
-      
+
       if (validation.isValid && recommendationContext) {
         const updatedDraft = applyDraftFieldAnswer(
           draft,
@@ -529,14 +528,14 @@ export default function OrderAssistant({
           recommendationContext
         );
 
-        const supplierChanged = updatedDraft.selectedSupplier && draft.selectedSupplier && 
-                              updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
-        
+        const supplierChanged = updatedDraft.selectedSupplier && draft.selectedSupplier &&
+          updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
+
         let reply = '';
         if (supplierChanged && updatedDraft.selectedSupplier) {
           reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouve un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
-                  `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
-                  `Voulez-vous continuer ?`;
+            `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
+            `Voulez-vous continuer ?`;
         }
 
         setDraft(updatedDraft);
@@ -680,11 +679,10 @@ export default function OrderAssistant({
                 <div key={`${message.role}-${index}`} className="flex flex-col gap-1">
                   <div className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
                     <div
-                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${
-                        message.role === 'assistant'
+                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${message.role === 'assistant'
                           ? 'bg-kantioo-sand text-kantioo-dark'
                           : 'bg-kantioo-dark text-white'
-                      }`}
+                        }`}
                     >
                       <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] opacity-70">
                         {message.role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
@@ -731,15 +729,14 @@ export default function OrderAssistant({
                     Envoyer
                     <ArrowRight size={16} />
                   </button>
-                   <button
+                  <button
                     type="button"
                     onClick={handleFinalize}
                     disabled={!draft || finalizing || Boolean(nextDraftField)}
-                    className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${
-                      !nextDraftField && draft
+                    className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${!nextDraftField && draft
                         ? 'bg-emerald-600 shadow-[0_18px_36px_-24px_rgba(5,150,105,0.95)] hover:-translate-y-0.5 hover:bg-emerald-700'
                         : 'bg-kantioo-muted opacity-40 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     {finalizing ? 'Finalisation...' : 'Finaliser la commande'}
                   </button>
