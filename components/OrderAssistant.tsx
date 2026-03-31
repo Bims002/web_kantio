@@ -637,22 +637,22 @@ export default function OrderAssistant({
 
     // Step 3: Contact name collection - after material is found
     if (!hasContactName) {
-      const validation = validateDraftFieldAnswer('contactName', nextUserMessage.content);
-      if (validation.isValid) {
+      // Accept any non-empty input as contact name
+      if (nextUserMessage.content.trim().length >= 2) {
         const updatedDraft = {
           ...draft!,
-          contactInfo: { ...draft!.contactInfo, name: validation.normalizedValue },
+          contactInfo: { ...draft!.contactInfo, name: nextUserMessage.content.trim() },
           createdAt: new Date().toISOString(),
         };
         setDraft(updatedDraft);
         await queueAssistantReply({
           nextUserMessage,
-          preferredReply: `Merci ${validation.normalizedValue} ! Quel est le numero de telephone pour joindre ce contact ?`,
+          preferredReply: `Merci! Quel est le numero de telephone pour joindre ${updatedDraft.contactInfo.name} ?`,
           draftOverride: updatedDraft,
         });
         return;
       }
-      // User didn't give a valid name, ask again
+      // Too short, ask again
       await queueAssistantReply({
         nextUserMessage,
         preferredReply: `Quel est le nom du contact pour la reception ?`,
@@ -660,7 +660,7 @@ export default function OrderAssistant({
       return;
     }
 
-    // Step 5: Contact phone collection
+    // Step 4: Contact phone collection
     if (hasContactName && !hasContactPhone) {
       const validation = validateDraftFieldAnswer('contactPhone', nextUserMessage.content);
       if (validation.isValid) {
