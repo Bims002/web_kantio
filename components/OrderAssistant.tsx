@@ -601,18 +601,23 @@ export default function OrderAssistant({
       }
     }
 
-    // 3. Fallback to AI assistant for general questions.
-    // If recommendation context exists but missing fields, tell user to complete info first.
-    if (recommendationContext && missingFields.length > 0) {
+    // 3. If we still need contact/address info, ask for them directly.
+    if (missingFields.length > 0) {
       const fieldLabels: Record<string, string> = {
         siteAddress: 'quartier de livraison',
         contactName: 'nom du contact',
         contactPhone: 'numero de telephone',
       };
-      const missingLabels = missingFields.map(f => fieldLabels[f]).join(' et ');
+      // Get the FIRST missing field to ask about
+      const firstMissingField = missingFields[0];
+      const fieldPrompts: Record<string, string> = {
+        siteAddress: 'Dans quel quartier se trouve votre chantier ?',
+        contactName: 'Quel est le nom du contact pour la reception ?',
+        contactPhone: 'Quel numero de telephone pour joindre ce contact ?',
+      };
       await queueAssistantReply({
         nextUserMessage,
-        preferredReply: `Il manque encore : ${missingLabels}. Merci de completer ces informations avant de chercher un materiau. ${getNextDraftQuestion(draft) || ''}`,
+        preferredReply: `Pour finaliser la commande, j'ai encore besoin de : ${missingFields.map(f => fieldLabels[f]).join(' et ')}. ${fieldPrompts[firstMissingField] || ''}`,
       });
       return;
     }
