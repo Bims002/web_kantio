@@ -423,10 +423,10 @@ export default function OrderAssistant({
           setAlternativeMaterials(alternatives);
           setSuggestedMaterials(alternatives);
 
-          const list = alternatives.slice(0, 5).map((m) => m.name).join(', ');
+          const list = alternatives.map((m) => m.name).join(', ');
           return {
             draftOverride: null,
-            reply: `Je n'ai pas trouve "${userMessage}" exactement, mais voici les ${categorySearch.category} disponibles :\n${list}\n\nLequel vous interesse ?`,
+            reply: `Je n'ai pas trouve "${userMessage}" exactement, mais voici tous les ${categorySearch.category} disponibles :\n${list}\n\nLequel vous interesse ?`,
           };
         }
       }
@@ -463,7 +463,7 @@ export default function OrderAssistant({
       setAlternativeMaterials([]);
       return {
         draftOverride: null,
-        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20, 100, 5...)`
+        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20 ${selectedMaterial.unit}, 100 ${selectedMaterial.unit}...)`
       };
     }
 
