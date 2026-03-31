@@ -540,30 +540,32 @@ export default function OrderAssistant({
     setLoadingReply(true);
     setErrorMessage('');
 
-    // 1. If we are waiting for a specific draft field (contactName, contactPhone, siteAddress),
-    // always prioritize collecting those fields FIRST before any material recommendation.
-    if (draft && nextDraftField && nextDraftField !== 'materialSearch') {
-      const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
+    // Determine the current step based on draft state
+    const hasAddress = !!draft?.siteInfo.address.trim();
+    const hasMaterial = (draft?.cart.length ?? 0) > 0;
+    const hasContactName = !!draft?.contactInfo.name.trim();
+    const hasContactPhone = !!draft?.contactInfo.phone.trim();
 
+    // Step 1: Collect address first
+    if (!hasAddress && nextDraftField === 'siteAddress') {
+      const validation = validateDraftFieldAnswer('siteAddress', nextUserMessage.content);
       if (validation.isValid) {
         const updatedDraft = applyDraftFieldAnswer(
-          draft,
-          nextDraftField,
+          draft!,
+          'siteAddress',
           validation.normalizedValue,
           recommendationContext || {} as RecommendationContext
         );
-
-        const supplierChanged = updatedDraft.selectedSupplier && draft.selectedSupplier &&
+        setDraft(updatedDraft);
+        const supplierChanged = updatedDraft.selectedSupplier && draft?.selectedSupplier &&
           updatedDraft.selectedSupplier.id !== draft.selectedSupplier.id;
 
         let reply = '';
         if (supplierChanged && updatedDraft.selectedSupplier) {
           reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouve un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
-            `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. ` +
-            `Voulez-vous continuer ?`;
+            `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. Voulez-vous continuer ?`;
         }
 
-        setDraft(updatedDraft);
         await queueAssistantReply({
           nextUserMessage,
           preferredReply: reply || undefined,
@@ -573,17 +575,8 @@ export default function OrderAssistant({
       }
     }
 
-    // 2. Only enter recommendation flow (material search) when all draft fields are filled
-    // or when we explicitly need materialSearch field AND user message looks like a material query.
-    // Skip recommendation flow if we still need contactName, contactPhone, or siteAddress.
-    const missingFields = draft ? ['contactName', 'contactPhone', 'siteAddress'].filter(f => {
-      if (f === 'siteAddress') return !draft.siteInfo.address.trim();
-      if (f === 'contactName') return !draft.contactInfo.name.trim();
-      if (f === 'contactPhone') return !draft.contactInfo.phone.trim();
-      return false;
-    }) : [];
-
-    if (recommendationContext && missingFields.length === 0) {
+    // Step 2: Material + Quantity search (only after address is collected)
+    if (hasAddress && !hasMaterial && recommendationContext) {
       const siteCoords =
         typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
           ? { lat: draft.siteInfo.lat, lng: draft.siteInfo.lng }
@@ -601,27 +594,63 @@ export default function OrderAssistant({
       }
     }
 
-    // 3. If we still need contact/address info, ask for them directly.
-    if (missingFields.length > 0) {
-      const fieldLabels: Record<string, string> = {
-        siteAddress: 'quartier de livraison',
-        contactName: 'nom du contact',
-        contactPhone: 'numero de telephone',
-      };
-      // Get the FIRST missing field to ask about
-      const firstMissingField = missingFields[0];
-      const fieldPrompts: Record<string, string> = {
-        siteAddress: 'Dans quel quartier se trouve votre chantier ?',
-        contactName: 'Quel est le nom du contact pour la reception ?',
-        contactPhone: 'Quel numero de telephone pour joindre ce contact ?',
-      };
+    // Step 3: After material found, ask for contact name (if not filled yet)
+    if (hasAddress && hasMaterial && !hasContactName) {
+      const validation = validateDraftFieldAnswer('contactName', nextUserMessage.content);
+      if (validation.isValid) {
+        const updatedDraft = {
+          ...draft!,
+          contactInfo: { ...draft!.contactInfo, name: validation.normalizedValue },
+          createdAt: new Date().toISOString(),
+        };
+        setDraft(updatedDraft);
+        await queueAssistantReply({
+          nextUserMessage,
+          preferredReply: `Merci ! Quel est le numero de telephone pour joindre ce contact ?`,
+          draftOverride: updatedDraft,
+        });
+        return;
+      }
+    }
+
+    // Step 4: After contact name, ask for phone number
+    if (hasAddress && hasMaterial && hasContactName && !hasContactPhone) {
+      const validation = validateDraftFieldAnswer('contactPhone', nextUserMessage.content);
+      if (validation.isValid) {
+        const updatedDraft = {
+          ...draft!,
+          contactInfo: { ...draft!.contactInfo, phone: validation.normalizedValue },
+          createdAt: new Date().toISOString(),
+        };
+        setDraft(updatedDraft);
+        await queueAssistantReply({
+          nextUserMessage,
+          preferredReply: `Parfait ! Toutes les informations sont collectees. Vous pouvez maintenant finaliser la commande.`,
+          draftOverride: updatedDraft,
+        });
+        return;
+      }
+    }
+
+    // If contact name is entered but validation failed for phone, ask again
+    if (hasAddress && hasMaterial && hasContactName && !hasContactPhone) {
       await queueAssistantReply({
         nextUserMessage,
-        preferredReply: `Pour finaliser la commande, j'ai encore besoin de : ${missingFields.map(f => fieldLabels[f]).join(' et ')}. ${fieldPrompts[firstMissingField] || ''}`,
+        preferredReply: `Il manque encore le numero de telephone pour joindre le contact. Quel numero de telephone pour joindre ce contact ?`,
       });
       return;
     }
 
+    // If material not found yet but address is filled, ask to try again with material
+    if (hasAddress && !hasMaterial) {
+      await queueAssistantReply({
+        nextUserMessage,
+        preferredReply: `Quel materiau souhaitez-vous commander (ex: ciment, sable, fer) ? N'oubliez pas la quantite : "20 sacs de ciment" ou "5 tonnes de sable".`,
+      });
+      return;
+    }
+
+    // Fallback
     await queueAssistantReply({
       nextUserMessage,
     });
