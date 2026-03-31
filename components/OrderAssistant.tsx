@@ -113,9 +113,10 @@ function buildRecommendationReply(input: {
   const distanceLine = `${recommendation.distanceKm.toFixed(1)} km`;
 
   return (
+    `Voici ce que j'ai trouve pour ${materialName} d'apres votre localisation :\n` +
     `✅ ${recommendation.supplier.name}\n` +
-    `📍 ${distanceLine}\n` +
-    `💰 ${priceLine}\n\n` +
+    `📍 Distance : ${distanceLine}\n` +
+    `💰Prix Unitaire : ${priceLine}\n` +
     `${nextQuestion || "Confirmer cette commande ?"}`.trim()
   );
 }
@@ -462,7 +463,7 @@ export default function OrderAssistant({
       return {
         draftOverride: null,
         reply:
-          'Je n\'ai pas trouve ce materiau. Essayez un nom simple :\nciment, sable, gravier, fer, beton, tuile, fil...\n\nN\'oubliez pas la quantite : "20 sacs deciment" ou "5 tonnes de sable"',
+          'Je n\'ai pas trouve ce materiau. Essayez un nom simple :\nciment, sable, gravier, fer, beton, peinture, cable electrique...\nN\'oubliez pas la quantite : "20 sacs de ciment" ou "5 tonnes de sable"',
       };
     }
 
@@ -488,7 +489,7 @@ export default function OrderAssistant({
       setAlternativeMaterials([]);
       return {
         draftOverride: null,
-        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\n\nQuelle quantite ? (par exemple: 20 ${selectedMaterial.unit}, 100 ${selectedMaterial.unit}...)`
+        reply: `Parfait ! Vous voulez du ${selectedMaterial.name}.\nQuelle quantite ? (par exemple: 20 ${selectedMaterial.unit}, 100 ${selectedMaterial.unit}...)`
       };
     }
 
@@ -504,7 +505,7 @@ export default function OrderAssistant({
       return {
         draftOverride: null,
         reply:
-          "Desolé, je n'ai pas trouve de fournisseur disponible pour ce materiau en ce moment.\n\nEssayez un autre materiau ou verifiez votre localisation.",
+          "Desolé, je n'ai pas trouve de fournisseur disponible pour ce materiau en ce moment.\nEssayez un autre materiau ou verifiez votre localisation.",
       };
     }
 
@@ -682,7 +683,7 @@ export default function OrderAssistant({
       <div className="mb-6">
         <Link href="/" className="action-secondary inline-flex gap-2">
           <ArrowLeft size={16} />
-          Retour a l accueil
+          Retour a l'accueil
         </Link>
       </div>
 
@@ -725,7 +726,7 @@ export default function OrderAssistant({
                     <div className="flex items-center gap-2">
                       <LoaderCircle size={16} className="animate-spin" />
                       <span className="inline-flex items-center gap-1">
-                        Assistant ecrit
+                        Votre assistant ecrit...
                         <span className="animate-pulse">.</span>
                         <span className="animate-pulse [animation-delay:180ms]">.</span>
                         <span className="animate-pulse [animation-delay:360ms]">.</span>
