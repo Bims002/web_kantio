@@ -137,10 +137,11 @@ interface ChatBubbleProps {
 }
 
 function ChatBubble({ content, role }: ChatBubbleProps) {
+  const lines = content.split('\n');
   return (
     <div className={`flex ${role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
       <div
-        className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 whitespace-pre-wrap ${
+        className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${
             role === 'assistant'
               ? 'bg-kantioo-sand text-kantioo-dark'
               : 'bg-kantioo-dark text-white'
@@ -150,10 +151,11 @@ function ChatBubble({ content, role }: ChatBubbleProps) {
           {role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
           {role === 'assistant' ? 'Assistant' : 'Vous'}
         </div>
-        {content.split('\n').map((line, i) => (
-          <div key={i} className="min-h-[1.25rem]">
+        {lines.map((line, i) => (
+          <span key={i}>
             {line}
-          </div>
+            {i < lines.length - 1 && <br />}
+          </span>
         ))}
       </div>
     </div>
