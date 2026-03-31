@@ -24,11 +24,13 @@ import {
   Eye,
   TrendingUp,
   BarChart3,
+  ArrowLeft,
 } from 'lucide-react';
 
 type AdminTab = 'orders' | 'suppliers' | 'materials' | 'pricing';
 type PricingView = 'list' | 'by-supplier' | 'comparison';
 type AdjustmentType = 'increase' | 'decrease';
+type SupplierTab = 'info' | 'products' | 'prices';
 
 interface AdminOrder extends Order {
   order_items?: OrderItem[];
@@ -148,6 +150,10 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     null
   );
 
+  // Supplier details view
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [supplierTabActive, setSupplierTabActive] = useState<SupplierTab>('info');
+
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -216,6 +222,18 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     });
     return Array.from(categories).sort();
   }, [materials]);
+
+  // Get materials for a specific supplier
+  const getSupplierMaterials = (supplierId: string) => {
+    return prices
+      .filter((p) => p.supplier_id === supplierId)
+      .map((p) => ({
+        ...p,
+        materialName: p.material?.name || 'Article',
+        materialIcon: p.material?.icon || '📦',
+      }))
+      .sort((a, b) => (a.materialName || '').localeCompare(b.materialName || ''));
+  };
 
   // ---- READ via Supabase anon client (RLS allows SELECT on all tables) ----
 
@@ -894,7 +912,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
               </section>
 
               <section className="space-y-4">
-                {activeTab === 'suppliers' ? filteredSuppliers.map((supplier) => (
+                {activeTab === 'suppliers' && !selectedSupplierId ? filteredSuppliers.map((supplier) => (
                   <div key={supplier.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{supplier.name}</h3>
@@ -902,6 +920,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       <p className="mt-2 text-sm text-kantioo-dark">{supplier.phone}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
+                      <button type="button" onClick={() => setSelectedSupplierId(supplier.id)} className="action-secondary gap-2"><Eye size={16} />Détails</button>
                       <button type="button" onClick={() => { setEditingSupplierId(supplier.id); setSupplierForm({ name: supplier.name, phone: supplier.phone, contact_name: supplier.contact_name || '', email: supplier.email || '', city: formatCityLabel(supplier.city), quartier: supplier.quartier || '', address: supplier.address || '', lat: String(supplier.lat ?? ''), lng: String(supplier.lng ?? ''), delivery_radius: String(supplier.delivery_radius ?? 20), delivery_delay_hours: String(supplier.delivery_delay_hours || 24), stock_availability: supplier.stock_availability, is_active: supplier.is_active }); }} className="action-secondary gap-2"><Pencil size={16} />Modifier</button>
                       <button type="button" onClick={() => void removeRecord('suppliers', supplier.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Supprimer</button>
                     </div>
@@ -920,6 +939,178 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                     </div>
                   </div>
                 )) : null}
+
+                {/* Supplier Details View */}
+                {activeTab === 'suppliers' && selectedSupplierId ? (() => {
+                  const supplier = suppliers.find(s => s.id === selectedSupplierId);
+                  if (!supplier) return null;
+                  
+                  const supplierMaterials = getSupplierMaterials(selectedSupplierId);
+                  
+                  return (
+                    <div className="space-y-6">
+                      {/* Header with Back Button */}
+                      <div className="flex items-center gap-4">
+                        <button 
+                          type="button" 
+                          onClick={() => setSelectedSupplierId(null)}
+                          className="inline-flex items-center gap-2 rounded-full border border-kantioo-line px-4 py-3 text-sm font-semibold text-kantioo-dark hover:bg-kantioo-sand"
+                        >
+                          <ArrowLeft size={16} /> Retour
+                        </button>
+                        <h2 className="text-3xl font-black text-kantioo-dark">{supplier.name}</h2>
+                      </div>
+
+                      {/* Tabs */}
+                      <div className="flex gap-2 border-b border-kantioo-line">
+                        <button 
+                          type="button"
+                          onClick={() => setSupplierTabActive('info')}
+                          className={`px-4 py-3 font-semibold ${supplierTabActive === 'info' ? 'border-b-2 border-kantioo-orange text-kantioo-dark' : 'text-kantioo-muted'}`}
+                        >
+                          Infos
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setSupplierTabActive('products')}
+                          className={`px-4 py-3 font-semibold ${supplierTabActive === 'products' ? 'border-b-2 border-kantioo-orange text-kantioo-dark' : 'text-kantioo-muted'}`}
+                        >
+                          Articles ({supplierMaterials.length})
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setSupplierTabActive('prices')}
+                          className={`px-4 py-3 font-semibold ${supplierTabActive === 'prices' ? 'border-b-2 border-kantioo-orange text-kantioo-dark' : 'text-kantioo-muted'}`}
+                        >
+                          Tarification
+                        </button>
+                      </div>
+
+                      {/* Info Tab */}
+                      {supplierTabActive === 'info' && (
+                        <div className="panel p-6 space-y-4">
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Téléphone</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{supplier.phone}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Ville</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{formatCityLabel(supplier.city)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Contact</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{supplier.contact_name || '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Email</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{supplier.email || '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Délai de live</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{supplier.delivery_delay_hours}h</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-kantioo-muted">Rayon de livraison</p>
+                              <p className="mt-1 text-lg font-semibold text-kantioo-dark">{supplier.delivery_radius} km</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Products Tab */}
+                      {supplierTabActive === 'products' && (
+                        <div className="space-y-4">
+                          {supplierMaterials.length === 0 ? (
+                            <div className="panel p-6 text-center">
+                              <p className="text-kantioo-muted">Aucun article pour ce fournisseur</p>
+                            </div>
+                          ) : (
+                            supplierMaterials.map((item) => (
+                              <div key={item.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                  <h3 className="text-xl font-black text-kantioo-dark">{item.materialIcon} {item.materialName}</h3>
+                                  <p className="mt-1 text-sm text-kantioo-muted">{(item.price || 0).toLocaleString('fr-FR')} FCFA / {item.unit}</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button type="button" onClick={() => { setEditingPriceId(item.id); setPriceForm({ supplier_id: item.supplier_id, material_id: item.material_id, price: String(item.price), unit: item.unit }); }} className="action-secondary gap-2"><Pencil size={16} />Modifier prix</button>
+                                  <button type="button" onClick={() => void removeRecord('supplier_materials', item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {/* Pricing Tab - Add Material to Supplier */}
+                      {supplierTabActive === 'prices' && (
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          const payload = {
+                            supplier_id: selectedSupplierId,
+                            material_id: priceForm.material_id,
+                            price: Number.parseFloat(priceForm.price) || 0,
+                            unit: priceForm.unit.trim(),
+                          };
+                          if (!payload.material_id || !payload.price || !payload.unit) {
+                            setMessage({ type: 'error', text: 'Article, prix et unite obligatoires.' });
+                            return;
+                          }
+
+                          const url = editingPriceId ? `/api/admin/pricing/${editingPriceId}` : '/api/admin/pricing';
+                          const method = editingPriceId ? 'PATCH' : 'POST';
+
+                          const { error } = await adminFetch(url, { method, body: JSON.stringify(payload) });
+
+                          if (error) {
+                            setMessage({ type: 'error', text: error });
+                            return;
+                          }
+                          setMessage({ type: 'success', text: 'Tarif enregistre.' });
+                          resetPriceForm();
+                          await refreshAll();
+                        }} className="panel p-6 space-y-4">
+                          <h3 className="text-2xl font-black text-kantioo-dark">{editingPriceId ? 'Modifier le tarif' : 'Ajouter un article'}</h3>
+                          
+                          {/* Only show available materials not already in supplier */}
+                          <select 
+                            value={priceForm.material_id} 
+                            onChange={(e) => setPriceForm((current) => ({ ...current, material_id: e.target.value }))}
+                            className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
+                          >
+                            <option value="">Choisir un article</option>
+                            {materials
+                              .filter(m => !supplierMaterials.some(sm => sm.material_id === m.id) || editingPriceId)
+                              .map(m => (
+                                <option key={m.id} value={m.id}>{m.icon || '📦'} {m.name} ({m.category})</option>
+                              ))}
+                          </select>
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <input 
+                              type="number"
+                              value={priceForm.price} 
+                              onChange={(e) => setPriceForm((current) => ({ ...current, price: e.target.value }))}
+                              placeholder="Prix FCFA" 
+                              className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
+                            />
+                            <input 
+                              value={priceForm.unit} 
+                              onChange={(e) => setPriceForm((current) => ({ ...current, unit: e.target.value }))}
+                              placeholder="Unite (sac, kg, metre...)" 
+                              className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
+                            />
+                          </div>
+
+                          <div className="flex gap-3">
+                            <button type="submit" className="action-primary flex-1 justify-center gap-2"><Plus size={16} />Enregistrer</button>
+                            {editingPriceId ? <button type="button" onClick={resetPriceForm} className="action-secondary">Annuler</button> : null}
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })() : null}
 
                 {activeTab === 'pricing' && pricingView === 'list' ? filteredPrices.map((price) => (
                   <div key={price.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
