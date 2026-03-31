@@ -540,17 +540,17 @@ export default function OrderAssistant({
     setLoadingReply(true);
     setErrorMessage('');
 
-    // 1. If we are waiting for a specific draft field, try to answer it first.
-    // However, if we are waiting for materialSearch, we skip this to allow recommendation flow logic.
+    // 1. If we are waiting for a specific draft field (contactName, contactPhone, siteAddress),
+    // always prioritize collecting those fields FIRST before any material recommendation.
     if (draft && nextDraftField && nextDraftField !== 'materialSearch') {
       const validation = validateDraftFieldAnswer(nextDraftField, nextUserMessage.content);
 
-      if (validation.isValid && recommendationContext) {
+      if (validation.isValid) {
         const updatedDraft = applyDraftFieldAnswer(
           draft,
           nextDraftField,
           validation.normalizedValue,
-          recommendationContext
+          recommendationContext || {} as RecommendationContext
         );
 
         const supplierChanged = updatedDraft.selectedSupplier && draft.selectedSupplier &&
@@ -573,9 +573,17 @@ export default function OrderAssistant({
       }
     }
 
-    // 2. Recommendation flow (material search).
-    // This handles both the explicit "materialSearch" state and any other search-like query.
-    if (recommendationContext) {
+    // 2. Only enter recommendation flow (material search) when all draft fields are filled
+    // or when we explicitly need materialSearch field AND user message looks like a material query.
+    // Skip recommendation flow if we still need contactName, contactPhone, or siteAddress.
+    const missingFields = draft ? ['contactName', 'contactPhone', 'siteAddress'].filter(f => {
+      if (f === 'siteAddress') return !draft.siteInfo.address.trim();
+      if (f === 'contactName') return !draft.contactInfo.name.trim();
+      if (f === 'contactPhone') return !draft.contactInfo.phone.trim();
+      return false;
+    }) : [];
+
+    if (recommendationContext && missingFields.length === 0) {
       const siteCoords =
         typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
           ? { lat: draft.siteInfo.lat, lng: draft.siteInfo.lng }
@@ -591,6 +599,22 @@ export default function OrderAssistant({
         });
         return;
       }
+    }
+
+    // 3. Fallback to AI assistant for general questions.
+    // If recommendation context exists but missing fields, tell user to complete info first.
+    if (recommendationContext && missingFields.length > 0) {
+      const fieldLabels: Record<string, string> = {
+        siteAddress: 'quartier de livraison',
+        contactName: 'nom du contact',
+        contactPhone: 'numero de telephone',
+      };
+      const missingLabels = missingFields.map(f => fieldLabels[f]).join(' et ');
+      await queueAssistantReply({
+        nextUserMessage,
+        preferredReply: `Il manque encore : ${missingLabels}. Merci de completer ces informations avant de chercher un materiau. ${getNextDraftQuestion(draft) || ''}`,
+      });
+      return;
     }
 
     await queueAssistantReply({
