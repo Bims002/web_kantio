@@ -164,6 +164,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [supplierForm, setSupplierForm] = useState<SupplierForm>(emptySupplier);
   const [materialForm, setMaterialForm] = useState<MaterialForm>(emptyMaterial);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [priceForm, setPriceForm] = useState<PriceForm>(emptyPrice);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -284,6 +285,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const resetMaterialForm = () => {
     setEditingMaterialId(null);
     setMaterialForm(emptyMaterial());
+    setNewCategoryName('');
   };
 
   const resetPriceForm = () => {
@@ -336,13 +338,17 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   const saveMaterial = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    
+    // Use new category name if user selected "__new__" option
+    const finalCategory = materialForm.category === '__new__' ? newCategoryName.trim() : materialForm.category.trim();
+    
     const payload = {
       name: materialForm.name.trim(),
-      category: materialForm.category.trim(),
+      category: finalCategory,
       unit: materialForm.unit.trim(),
       icon: materialForm.icon.trim() || null,
     };
-    if (!payload.name || !payload.category || !payload.unit || payload.category === '__new__') {
+    if (!payload.name || !payload.category || !payload.unit) {
       setMessage({ type: 'error', text: 'Nom, categorie (non-vide) et unite sont obligatoires.' });
       return;
     }
@@ -787,7 +793,12 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       <label className="text-sm font-semibold text-kantioo-dark">Catégorie</label>
                       <select 
                         value={materialForm.category} 
-                        onChange={(event) => setMaterialForm((current) => ({ ...current, category: event.target.value }))} 
+                        onChange={(event) => {
+                          setMaterialForm((current) => ({ ...current, category: event.target.value }));
+                          if (event.target.value !== '__new__') {
+                            setNewCategoryName('');
+                          }
+                        }} 
                         className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
                       >
                         <option value="">Choisir une catégorie</option>
@@ -802,7 +813,8 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                         <input 
                           type="text"
                           placeholder="Nom de la nouvelle catégorie"
-                          onChange={(event) => setMaterialForm((current) => ({ ...current, category: event.target.value }))}
+                          value={newCategoryName}
+                          onChange={(event) => setNewCategoryName(event.target.value)}
                           className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none bg-kantioo-sand"
                           autoFocus
                         />

@@ -362,7 +362,7 @@ export default function OrderAssistant({
       if (!quantity) {
         return {
           draftOverride: null,
-          reply: `J ai bien retenu ${pendingRecommendationMaterial.name}. Quelle quantite souhaitez-vous commander ?`,
+          reply: `J ai bien retenu ${pendingRecommendationMaterial.name}. Quelle quantite souhaitez-vous commander ? (par exemple: 20 ${pendingRecommendationMaterial.unit}, 100 ${pendingRecommendationMaterial.unit}...)`,
         };
       }
 
@@ -399,6 +399,31 @@ export default function OrderAssistant({
       };
     }
 
+    // FIRST: Check if input is exactly a category
+    const normalizedInput = userMessage.toLowerCase().trim();
+    const uniqueCategories = Array.from(
+      new Set(recommendationContext.materials.map((m) => m.category).filter(Boolean))
+    );
+    const matchedCategory = uniqueCategories.find(
+      (cat) => cat && cat.toLowerCase() === normalizedInput
+    );
+
+    if (matchedCategory) {
+      const categoryMaterials = getMaterialsByCategory(matchedCategory, recommendationContext.materials);
+      if (categoryMaterials.length > 0) {
+        setDetectedCategory(matchedCategory);
+        setAlternativeMaterials(categoryMaterials);
+        setSuggestedMaterials(categoryMaterials);
+
+        const list = categoryMaterials.map((m) => m.name).join(', ');
+        return {
+          draftOverride: null,
+          reply: `Parfait ! Voici tous les ${matchedCategory} disponibles :\n${list}\n\nLequel vous interesse ?`,
+        };
+      }
+    }
+
+    // THEN: Try fuzzy matching
     const matches = findMaterialMatches(
       userMessage,
       suggestedMaterials.length > 0 ? suggestedMaterials : recommendationContext.materials
