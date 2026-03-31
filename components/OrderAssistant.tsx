@@ -131,6 +131,41 @@ function buildOpeningMessage(draft: OrderDraft) {
   return nextQuestion || 'Je suis pret a poursuivre la commande.';
 }
 
+interface ChatBubbleProps {
+  role: 'assistant' | 'user';
+  content: string;
+}
+
+function ChatBubble({ content, role }: ChatBubbleProps) {
+  const renderContent = (text: string) => {
+    return text.split('\n').map((line, idx) => (
+      <span key={idx}>
+        {line}
+        {idx < text.split('\n').length - 1 && <br />}
+      </span>
+    ));
+  };
+
+  return (
+    <div className={`flex ${role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+      <div
+        className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm ${role === 'assistant'
+            ? 'bg-kantioo-sand text-kantioo-dark'
+            : 'bg-kantioo-dark text-white'
+          }`}
+      >
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] opacity-70">
+          {role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
+          {role === 'assistant' ? 'Assistant' : 'Vous'}
+        </div>
+        <div className="whitespace-pre-wrap leading-7">
+          {renderContent(content)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrderAssistant({
   initialDraft,
   recommendationContext,
@@ -576,6 +611,7 @@ export default function OrderAssistant({
     }
 
     // Step 2: Material + Quantity search (only after address is collected)
+    // ALWAYS try material search when no material is in cart yet
     if (hasAddress && !hasMaterial && recommendationContext) {
       const siteCoords =
         typeof draft?.siteInfo.lat === 'number' && typeof draft?.siteInfo.lng === 'number'
@@ -594,8 +630,17 @@ export default function OrderAssistant({
       }
     }
 
-    // Step 3: After material found, ask for contact name (if not filled yet)
-    if (hasAddress && hasMaterial && !hasContactName) {
+    // If we don't have material yet and couldn't find one, keep asking for material
+    if (!hasMaterial) {
+      await queueAssistantReply({
+        nextUserMessage,
+        preferredReply: `Quel materiau souhaitez-vous commander (ex: ciment, sable, fer) ? N'oubliez pas la quantite : "20 sacs de ciment" ou "5 tonnes de sable".`,
+      });
+      return;
+    }
+
+    // Step 3: Contact name collection - after material is found
+    if (!hasContactName) {
       const validation = validateDraftFieldAnswer('contactName', nextUserMessage.content);
       if (validation.isValid) {
         const updatedDraft = {
@@ -606,15 +651,21 @@ export default function OrderAssistant({
         setDraft(updatedDraft);
         await queueAssistantReply({
           nextUserMessage,
-          preferredReply: `Merci ! Quel est le numero de telephone pour joindre ce contact ?`,
+          preferredReply: `Merci ${validation.normalizedValue} ! Quel est le numero de telephone pour joindre ce contact ?`,
           draftOverride: updatedDraft,
         });
         return;
       }
+      // User didn't give a valid name, ask again
+      await queueAssistantReply({
+        nextUserMessage,
+        preferredReply: `Quel est le nom du contact pour la reception ?`,
+      });
+      return;
     }
 
-    // Step 4: After contact name, ask for phone number
-    if (hasAddress && hasMaterial && hasContactName && !hasContactPhone) {
+    // Step 5: Contact phone collection
+    if (hasContactName && !hasContactPhone) {
       const validation = validateDraftFieldAnswer('contactPhone', nextUserMessage.content);
       if (validation.isValid) {
         const updatedDraft = {
@@ -630,27 +681,13 @@ export default function OrderAssistant({
         });
         return;
       }
-    }
-
-    // If contact name is entered but validation failed for phone, ask again
-    if (hasAddress && hasMaterial && hasContactName && !hasContactPhone) {
+      // Invalid phone, ask again
       await queueAssistantReply({
         nextUserMessage,
         preferredReply: `Il manque encore le numero de telephone pour joindre le contact. Quel numero de telephone pour joindre ce contact ?`,
       });
       return;
     }
-
-    // If material not found yet but address is filled, ask to try again with material
-    if (hasAddress && !hasMaterial) {
-      await queueAssistantReply({
-        nextUserMessage,
-        preferredReply: `Quel materiau souhaitez-vous commander (ex: ciment, sable, fer) ? N'oubliez pas la quantite : "20 sacs de ciment" ou "5 tonnes de sable".`,
-      });
-      return;
-    }
-
-    // Fallback
     await queueAssistantReply({
       nextUserMessage,
     });
@@ -759,22 +796,11 @@ export default function OrderAssistant({
               className="flex-1 space-y-4 overflow-y-auto px-6 py-6 pr-3 sm:px-8"
             >
               {messages.map((message, index) => (
-                <div key={`${message.role}-${index}`} className="flex flex-col gap-1">
-                  <div className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                    <div
-                      className={`max-w-[85%] rounded-[24px] px-4 py-4 text-sm leading-7 ${message.role === 'assistant'
-                          ? 'bg-kantioo-sand text-kantioo-dark'
-                          : 'bg-kantioo-dark text-white'
-                        }`}
-                    >
-                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] opacity-70">
-                        {message.role === 'assistant' ? <Bot size={14} /> : <User size={14} />}
-                        {message.role === 'assistant' ? 'Assistant' : 'Vous'}
-                      </div>
-                      <p>{message.content}</p>
-                    </div>
-                  </div>
-                </div>
+                <ChatBubble
+                  key={`${message.role}-${index}`}
+                  content={message.content}
+                  role={message.role}
+                />
               ))}
 
               {loadingReply ? (
