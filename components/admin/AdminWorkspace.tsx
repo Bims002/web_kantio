@@ -167,6 +167,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [priceForm, setPriceForm] = useState<PriceForm>(emptyPrice);
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminFilter, setAdminFilter] = useState<'all' | 'orders' | 'suppliers' | 'materials' | 'pricing'>('all');
 
   // Pricing view state
   const [pricingView, setPricingView] = useState<PricingView>('list');
@@ -174,6 +175,15 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [editablePrices, setEditablePrices] = useState<Record<string, string>>({});
   const [adjustmentPercent, setAdjustmentPercent] = useState<string>('5');
   const [adjustmentType, setAdjustmentType] = useState<AdjustmentType>('increase');
+
+  type AdminFilterConfig = { key: 'all' | 'orders' | 'suppliers' | 'materials' | 'pricing'; label: string; icon: React.ElementType; color: string };
+  const ADMIN_FILTER_CONFIG: AdminFilterConfig[] = [
+    { key: 'all', label: 'Tout', icon: ShoppingBag, color: 'bg-kantioo-dark text-white' },
+    { key: 'orders', label: 'Commandes', icon: ShoppingBag, color: 'bg-blue-600 text-white' },
+    { key: 'suppliers', label: 'Fournisseurs', icon: Users, color: 'bg-emerald-600 text-white' },
+    { key: 'materials', label: 'Articles', icon: PackageSearch, color: 'bg-amber-600 text-white' },
+    { key: 'pricing', label: 'Tarifs', icon: Banknote, color: 'bg-purple-600 text-white' },
+  ];
 
   const normalizedSearch = searchQuery.toLowerCase().trim();
 
@@ -676,20 +686,46 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
             </div>
           ) : null}
 
-          <div className="relative">
-            <span className="absolute inset-y-0 left-4 flex items-center text-kantioo-muted">
-              <Search size={20} />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              className="w-full rounded-[20px] border border-kantioo-line bg-white px-5 py-3 pl-12 text-sm text-kantioo-dark shadow-sm outline-none focus:border-kantioo-dark focus:ring-1 focus:ring-kantioo-dark"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-4 flex items-center text-kantioo-muted">
+                <Search size={20} />
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher..."
+                className="w-full rounded-[20px] border border-kantioo-line bg-white px-5 py-3 pl-12 text-sm text-kantioo-dark shadow-sm outline-none focus:border-kantioo-dark focus:ring-1 focus:ring-kantioo-dark"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {ADMIN_FILTER_CONFIG.map((filter) => {
+                const Icon = filter.icon;
+                const isActive = adminFilter === filter.key;
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => {
+                      setAdminFilter(filter.key);
+                      setSearchQuery('');
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all ${
+                      isActive
+                        ? filter.color + ' shadow-lg scale-105'
+                        : 'bg-white text-kantioo-muted ring-1 ring-kantioo-line hover:ring-kantioo-orange/50 hover:text-kantioo-orange'
+                    }`}
+                  >
+                    <Icon size={13} />
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {activeTab === 'orders' ? (
+          {adminFilter === 'orders' || (adminFilter === 'all' && activeTab === 'orders') ? (
             <div className="space-y-4">
               {filteredOrders.map((order) => (
                 <div key={order.id} className="panel flex flex-col gap-5 p-6 xl:flex-row xl:items-center xl:justify-between">
@@ -730,7 +766,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
             </div>
           ) : null}
 
-          {activeTab !== 'orders' ? (
+          {adminFilter === 'all' || activeTab !== 'orders' ? (
             <div className="grid gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
               <section className="panel p-6">
                 {activeTab === 'suppliers' ? (
