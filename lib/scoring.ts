@@ -1,3 +1,4 @@
+// Fin de mission : Suppression totale de la gestion des prix et optimisation logistique.
 import type { Supplier } from "./types";
 
 interface SupplierMaterialScore {
