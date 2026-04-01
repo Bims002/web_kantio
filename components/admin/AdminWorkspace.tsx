@@ -195,10 +195,12 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   // Get materials for a specific supplier
   const getSupplierMaterials = (supplierId: string) => {
-    // Note: prices was actually supplier_materials in previous code
-    // We need to fetch this or keep it in state. 
-    // For now, let's just make it return an empty array with the right type to avoid 'never'
-    return [] as (SupplierMaterial & { materialName: string; materialIcon: string })[];
+    const materials = supplierMaterialsMap[supplierId] || [];
+    return materials.map(item => ({
+      ...item,
+      materialName: item.material?.name || 'Article',
+      materialIcon: item.material?.icon || '📦',
+    }));
   };
 
   // ---- READ via Supabase anon client (RLS allows SELECT on all tables) ----
@@ -380,11 +382,16 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   };
 
 
-  const handleCsvImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCsvImport = async (event: React.ChangeEvent<HTMLInputElement>, endpoint: string = '/api/admin/suppliers/import') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!window.confirm(`Voulez-vous importer le fichier ${file.name} ?`)) {
+    const isProductsImport = endpoint.includes('products-import');
+    const confirmMsg = isProductsImport 
+      ? `Voulez-vous importer les materiaux du fichier ${file.name} ?\n\nFormat attendu: telephone, nom_materiau, prix, unite\n\nExemple: 655123456, Ciment, 5000, sac`
+      : `Voulez-vous importer le fichier ${file.name} ?`;
+
+    if (!window.confirm(confirmMsg)) {
       event.target.value = '';
       return;
     }
@@ -396,7 +403,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/admin/suppliers/import', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
@@ -406,7 +413,16 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
         throw new Error(json.error || "Erreur lors de l'import");
       }
 
-      setMessage({ type: 'success', text: `${json.inserted} fournisseurs importes avec succes !` });
+      const imported = json.imported || json.inserted || 0;
+      const skipped = json.skipped || 0;
+      let successText = `${imported} elements importes avec succes`;
+      if (skipped > 0) successText += ` (${skipped} ignores)`;
+      
+      if (json.errors && json.errors.length > 0) {
+        successText += `\n\nErreurs:\n- ${json.errors.join('\n- ')}`;
+      }
+
+      setMessage({ type: 'success', text: successText });
       await refreshAll();
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : "Erreur reseau." });
@@ -415,6 +431,27 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
       event.target.value = '';
     }
   };
+
+  // Fetch supplier materials from Supabase
+  const [supplierMaterialsMap, setSupplierMaterialsMap] = useState<Record<string, { id: string; supplier_id: string; material_id: string; unit: string; material?: Material }[]>>({});
+
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      if (!suppliers.length) return;
+      const { data, error } = await supabase
+        .from('supplier_materials')
+        .select('*, material:materials(*)');
+      if (!error && data) {
+        const map: Record<string, typeof data> = {};
+        data.forEach(item => {
+          if (!map[item.supplier_id]) map[item.supplier_id] = [];
+          map[item.supplier_id].push(item);
+        });
+        setSupplierMaterialsMap(map);
+      }
+    };
+    fetchMaterials();
+  }, [suppliers]);
 
   const activeSuppliersCount = suppliers.filter((supplier) => supplier.is_active).length;
 
@@ -588,17 +625,32 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{editingSupplierId ? 'Modifier un fournisseur' : 'Ajouter un fournisseur'}</h3>
                       {!editingSupplierId && (
-                        <div className="relative overflow-hidden rounded-full border border-kantioo-line bg-white hover:bg-kantioo-sand">
-                          <input 
-                            type="file" 
-                            accept=".csv" 
-                            onChange={handleCsvImport}
-                            className="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-0"
-                            disabled={refreshing}
-                            title="Importer un CSV"
-                          />
-                          <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-kantioo-dark">
-                            <Upload size={16} /> Importer CSV
+                        <div className="flex flex-wrap gap-2">
+                          <div className="relative overflow-hidden rounded-full border border-kantioo-line bg-white hover:bg-kantioo-sand">
+                            <input 
+                              type="file" 
+                              accept=".csv" 
+                              onChange={(e) => handleCsvImport(e, '/api/admin/suppliers/import')}
+                              className="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-0"
+                              disabled={refreshing}
+                              title="Importer fournisseurs CSV"
+                            />
+                            <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-kantioo-dark">
+                              <Upload size={16} /> Fournisseurs
+                            </div>
+                          </div>
+                          <div className="relative overflow-hidden rounded-full border border-kantioo-line bg-white hover:bg-kantioo-sand">
+                            <input 
+                              type="file" 
+                              accept=".csv" 
+                              onChange={(e) => handleCsvImport(e, '/api/admin/suppliers/products-import')}
+                              className="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-0"
+                              disabled={refreshing}
+                              title="Importer produits CSV"
+                            />
+                            <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-kantioo-dark">
+                              <Upload size={16} /> Produits
+                            </div>
                           </div>
                         </div>
                       )}
