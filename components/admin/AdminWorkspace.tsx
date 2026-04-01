@@ -451,6 +451,8 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   // Fetch supplier materials from Supabase
   const [supplierMaterialsMap, setSupplierMaterialsMap] = useState<Record<string, { id: string; supplier_id: string; material_id: string; unit: string; material?: Material }[]>>({});
+  const [newProductForm, setNewProductForm] = useState({ materialId: '', unit: '' });
+  const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
     const fetchMaterials = async () => {
@@ -858,27 +860,89 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       )}
 
                       {/* Products Tab */}
-                      {supplierTabActive === 'products' && (
-                        <div className="space-y-4">
-                          {supplierMaterials.length === 0 ? (
-                            <div className="panel p-6 text-center">
-                              <p className="text-kantioo-muted">Aucun article pour ce fournisseur</p>
-                            </div>
-                          ) : (
-                            supplierMaterials.map((item) => (
-                              <div key={item.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-                                <div>
-                                  <h3 className="text-xl font-black text-kantioo-dark">{item.materialIcon} {item.materialName}</h3>
-                                  <p className="mt-1 text-sm text-kantioo-muted">{item.unit}</p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <button type="button" onClick={() => void removeSupplierMaterial(item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
+          {supplierTabActive === 'products' && (
+            <div className="space-y-4">
+              {/* Add product form */}
+              <div className="panel p-6 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-kantioo-dark">Ajouter un article</h3>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAddProduct(!showAddProduct)}
+                    className="flex items-center gap-2 text-sm text-kantioo-orange font-semibold"
+                  >
+                    <Plus size={16} /> {showAddProduct ? 'Annuler' : 'Ajouter'}
+                  </button>
+                </div>
+                {showAddProduct && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newProductForm.materialId) {
+                      setMessage({ type: 'error', text: 'Selectionnez un article' });
+                      return;
+                    }
+                    const response = await fetch('/api/admin/supplier-materials', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        supplier_id: selectedSupplierId,
+                        material_id: newProductForm.materialId,
+                        unit: newProductForm.unit || 'unite',
+                      }),
+                    });
+                    const json = await response.json();
+                    if (!response.ok) {
+                      setMessage({ type: 'error', text: json.error || 'Erreur lors de l\'ajout' });
+                    } else {
+                      setMessage({ type: 'success', text: 'Article ajoute au fournisseur' });
+                      setNewProductForm({ materialId: '', unit: '' });
+                      setShowAddProduct(false);
+                      await refreshAll();
+                    }
+                  }} className="space-y-3">
+                    <select
+                      value={newProductForm.materialId}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, materialId: e.target.value })}
+                      className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
+                    >
+                      <option value="">Selectionnez un article</option>
+                      {materials.map(m => (
+                        <option key={m.id} value={m.id}>{m.icon || '📦'} {m.name} ({m.category})</option>
+                      ))}
+                    </select>
+                    <input
+                      value={newProductForm.unit}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, unit: e.target.value })}
+                      placeholder="Unite (sac, tonne, metre...)"
+                      className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
+                    />
+                    <button type="submit" className="action-primary w-full justify-center gap-2">
+                      <Plus size={16} /> Ajouter l'article
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Existing products */}
+              {supplierMaterials.length === 0 ? (
+                <div className="panel p-6 text-center">
+                  <p className="text-kantioo-muted">Aucun article pour ce fournisseur</p>
+                </div>
+              ) : (
+                supplierMaterials.map((item) => (
+                  <div key={item.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-kantioo-dark">{item.materialIcon} {item.materialName}</h3>
+                      <p className="mt-1 text-sm text-kantioo-muted">{item.unit}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void removeSupplierMaterial(item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
 
                     </div>
                   );
