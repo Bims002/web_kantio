@@ -23,11 +23,88 @@ export default function SupplierMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken] = useState(process.env.NEXT_PUBLIC_MAPBOX_TOKEN);
 
+  // Store markers reference to avoid recreating them
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken || mapboxToken.includes('placeholder')) {
       return;
     }
 
+    // If map already exists, just update markers
+    if (map.current) {
+      // Clear existing markers
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+
+      const nextMap = map.current;
+
+      // Move to new center if changed
+      if (center) {
+        nextMap.setCenter(center);
+      }
+      if (zoom) {
+        nextMap.setZoom(zoom);
+      }
+
+      // Add supplier markers
+      suppliers.forEach((supplier) => {
+        if (!supplier.lat || !supplier.lng) return;
+
+        const popup = new mapboxgl.Popup({ offset: 18, maxWidth: '280px' }).setHTML(`
+          <div style="padding: 10px 8px; min-width: 200px; font-family: system-ui, sans-serif;">
+            <div style="font-size: 15px; font-weight: 700; color: #1b130c; margin-bottom: 4px;">${supplier.name}</div>
+            <div style="font-size: 12px; color: #6d6258; margin-bottom: 10px;">${supplier.quartier || ''}${supplier.quartier ? ', ' : ''}${formatCityLabel(supplier.city)}</div>
+            <a href="/fournisseurs/${supplier.id}" style="display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #e8650a; color: white; text-decoration: none; padding: 8px 14px; font-size: 12px; font-weight: 700;">
+              Voir le profil
+            </a>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({
+          color: '#e8650a',
+          scale: 0.8,
+        })
+          .setLngLat([supplier.lng, supplier.lat])
+          .setPopup(popup)
+          .addTo(nextMap);
+
+        markersRef.current.push(marker);
+      });
+
+      // Add SITE marker if coordinates exist
+      if (siteCoords) {
+        const siteNode = document.createElement('div');
+        siteNode.style.width = '22px';
+        siteNode.style.height = '22px';
+        siteNode.style.borderRadius = '999px';
+        siteNode.style.border = '3px solid white';
+        siteNode.style.background = '#3b82f6';
+        siteNode.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.3)';
+
+        new mapboxgl.Marker(siteNode)
+          .setLngLat([siteCoords.lng, siteCoords.lat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 18 }).setHTML(`
+              <div style="padding: 10px; font-family: system-ui, sans-serif; text-align: center;">
+                <div style="font-weight: 800; color: #1e3a8a; font-size: 13px;">VOTRE CHANTIER</div>
+                <div style="font-size: 12px; color: #475569; margin-top: 4px;">Emplacement détecté par l'assistant</div>
+              </div>
+            `)
+          )
+          .addTo(nextMap);
+
+        nextMap.flyTo({
+          center: [siteCoords.lng, siteCoords.lat],
+          zoom: 13,
+          essential: true,
+        });
+      }
+
+      return;
+    }
+
+    // Initialize map
     mapboxgl.accessToken = mapboxToken;
 
     const nextMap = new mapboxgl.Map({
@@ -40,72 +117,71 @@ export default function SupplierMap({
 
     nextMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    suppliers.forEach((supplier) => {
-      const markerNode = document.createElement('button');
-      markerNode.type = 'button';
-      markerNode.setAttribute('aria-label', supplier.name);
-      markerNode.style.width = '18px';
-      markerNode.style.height = '18px';
-      markerNode.style.borderRadius = '999px';
-      markerNode.style.border = '2.5px solid white';
-      markerNode.style.background = '#e8650a';
-      markerNode.style.boxShadow = '0 8px 16px -8px rgba(27, 19, 12, 0.7)';
+    // Wait for map to load before adding markers
+    nextMap.on('load', () => {
+      // Add supplier markers
+      suppliers.forEach((supplier) => {
+        if (!supplier.lat || !supplier.lng) return;
 
-      new mapboxgl.Marker(markerNode)
-        .setLngLat([supplier.lng, supplier.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 24 }).setHTML(`
-            <div style="padding: 6px 4px; min-width: 220px; font-family: sans-serif;">
-              <div style="font-size: 16px; font-weight: 700; color: #1b130c;">${supplier.name}</div>
-              <div style="margin-top: 4px; font-size: 12px; color: #6d6258;">${supplier.quartier || ''}${supplier.quartier ? ', ' : ''}${formatCityLabel(supplier.city)}</div>
-              <a
-                href="/fournisseurs/${supplier.id}"
-                style="display: inline-flex; margin-top: 12px; align-items: center; justify-content: center; border-radius: 999px; background: #e8650a; color: white; text-decoration: none; padding: 10px 14px; font-size: 12px; font-weight: 700;"
-              >
-                Voir le profil
-              </a>
-            </div>
-          `)
-        )
-        .addTo(nextMap);
+        const popup = new mapboxgl.Popup({ offset: 18, maxWidth: '280px' }).setHTML(`
+          <div style="padding: 10px 8px; min-width: 200px; font-family: system-ui, sans-serif;">
+            <div style="font-size: 15px; font-weight: 700; color: #1b130c; margin-bottom: 4px;">${supplier.name}</div>
+            <div style="font-size: 12px; color: #6d6258; margin-bottom: 10px;">${supplier.quartier || ''}${supplier.quartier ? ', ' : ''}${formatCityLabel(supplier.city)}</div>
+            <a href="/fournisseurs/${supplier.id}" style="display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #e8650a; color: white; text-decoration: none; padding: 8px 14px; font-size: 12px; font-weight: 700;">
+              Voir le profil
+            </a>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({
+          color: '#e8650a',
+          scale: 0.8,
+        })
+          .setLngLat([supplier.lng, supplier.lat])
+          .setPopup(popup)
+          .addTo(nextMap);
+
+        markersRef.current.push(marker);
+      });
+
+      // Add SITE marker if coordinates exist
+      if (siteCoords) {
+        const siteNode = document.createElement('div');
+        siteNode.style.width = '22px';
+        siteNode.style.height = '22px';
+        siteNode.style.borderRadius = '999px';
+        siteNode.style.border = '3px solid white';
+        siteNode.style.background = '#3b82f6';
+        siteNode.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.3)';
+
+        new mapboxgl.Marker(siteNode)
+          .setLngLat([siteCoords.lng, siteCoords.lat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 18 }).setHTML(`
+              <div style="padding: 10px; font-family: system-ui, sans-serif; text-align: center;">
+                <div style="font-weight: 800; color: #1e3a8a; font-size: 13px;">VOTRE CHANTIER</div>
+                <div style="font-size: 12px; color: #475569; margin-top: 4px;">Emplacement détecté par l'assistant</div>
+              </div>
+            `)
+          )
+          .addTo(nextMap);
+
+        nextMap.flyTo({
+          center: [siteCoords.lng, siteCoords.lat],
+          zoom: 13,
+          essential: true,
+        });
+      }
     });
 
-    // Add SITE marker if coordinates exist
-    if (siteCoords) {
-      const siteNode = document.createElement('div');
-      siteNode.style.width = '24px';
-      siteNode.style.height = '24px';
-      siteNode.style.borderRadius = '999px';
-      siteNode.style.border = '4px solid white';
-      siteNode.style.background = '#3b82f6'; // Blue for site
-      siteNode.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.4)';
-      siteNode.className = 'animate-pulse';
-
-      new mapboxgl.Marker(siteNode)
-        .setLngLat([siteCoords.lng, siteCoords.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 24 }).setHTML(`
-            <div style="padding: 10px; font-family: sans-serif; text-align: center;">
-              <div style="font-weight: 800; color: #1e3a8a;">VOTRE CHANTIER</div>
-              <div style="font-size: 12px; color: #475569; margin-top: 4px;">Emplacement détecté par l'assistant</div>
-            </div>
-          `)
-        )
-        .addTo(nextMap);
-
-      // Center on site
-      nextMap.flyTo({
-        center: [siteCoords.lng, siteCoords.lat],
-        zoom: 13,
-        essential: true
-      });
-    }
-
+    // Cleanup function
     return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
       nextMap.remove();
       map.current = null;
     };
-  }, [center, mapboxToken, suppliers, zoom, siteCoords]);
+  }, [center, zoom, suppliers, siteCoords, mapboxToken]);
 
   if (!mapboxToken || mapboxToken.includes('placeholder')) {
     return (
