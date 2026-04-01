@@ -2,6 +2,10 @@ import 'server-only';
 
 import { getAdminSession } from '@/lib/admin-auth';
 
+export interface RouteContext<T extends string> {
+  params: Promise<Record<string, string>>;
+}
+
 export async function requireAdminRequest() {
   const session = await getAdminSession();
 

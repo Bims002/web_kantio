@@ -1,4 +1,4 @@
-import { requireAdminRequest, getRouteErrorMessage } from '@/lib/admin-route';
+import { requireAdminRequest, getRouteErrorMessage, RouteContext } from '@/lib/admin-route';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Order } from '@/lib/types';
 

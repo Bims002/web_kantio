@@ -143,6 +143,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [materialForm, setMaterialForm] = useState<MaterialForm>(emptyMaterial);
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminFilter, setAdminFilter] = useState<'all' | 'orders' | 'suppliers' | 'materials'>('all');
   type AdminFilterConfig = { key: 'all' | 'orders' | 'suppliers' | 'materials'; label: string; icon: React.ElementType; color: string };
   const ADMIN_FILTER_CONFIG: AdminFilterConfig[] = [
     { key: 'all', label: 'Tout', icon: ShoppingBag, color: 'bg-kantioo-dark text-white' },
@@ -194,7 +195,10 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   // Get materials for a specific supplier
   const getSupplierMaterials = (supplierId: string) => {
-    return []; // A refactoriser si on veut garder la liste des produits sans prix
+    // Note: prices was actually supplier_materials in previous code
+    // We need to fetch this or keep it in state. 
+    // For now, let's just make it return an empty array with the right type to avoid 'never'
+    return [] as (SupplierMaterial & { materialName: string; materialIcon: string })[];
   };
 
   // ---- READ via Supabase anon client (RLS allows SELECT on all tables) ----

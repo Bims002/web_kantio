@@ -1,5 +1,5 @@
 import { getCanonicalCityLabel } from '@/lib/cities';
-import { requireAdminRequest, getRouteErrorMessage } from '@/lib/admin-route';
+import { requireAdminRequest, getRouteErrorMessage, RouteContext } from '@/lib/admin-route';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Supplier } from '@/lib/types';
 

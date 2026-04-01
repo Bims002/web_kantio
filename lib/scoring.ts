@@ -7,7 +7,6 @@ interface SupplierMaterialScore {
 export interface ScoringParams {
   supplier: Supplier & { supplier_materials: SupplierMaterialScore[] };
   siteCoords: { lat: number; lng: number };
-  allDistances: number[];
 }
 
 export function calculateDistance(

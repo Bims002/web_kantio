@@ -502,12 +502,11 @@ export function findBestSupplierForLocation(
     const allDistances = citySuppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
 
     availableItems.forEach(item => {
-      totalScore += scoreSupplier({
+      const scoreResult = scoreSupplier({
         supplier,
-        siteCoords,
-        materialId: item.materialId,
-        allDistances
+        siteCoords: { lat: siteCoords.lat, lng: siteCoords.lng },
       });
+      totalScore += scoreResult;
     });
 
     // Bonus for having MORE items from the cart
@@ -695,8 +694,6 @@ export function recommendSupplierForMaterial(input: {
         score: scoreSupplier({
           supplier,
           siteCoords,
-          materialId,
-          allDistances,
         }),
       };
     })
