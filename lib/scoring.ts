@@ -2,14 +2,11 @@ import type { Supplier } from "./types";
 
 interface SupplierMaterialScore {
   material_id: string;
-  price: number;
 }
 
 export interface ScoringParams {
   supplier: Supplier & { supplier_materials: SupplierMaterialScore[] };
   siteCoords: { lat: number; lng: number };
-  materialId: string;
-  allPrices: number[];
   allDistances: number[];
 }
 
@@ -30,27 +27,19 @@ export function calculateDistance(
 }
 
 export function scoreSupplier(params: ScoringParams): number {
-  const { supplier, siteCoords, materialId, allPrices } = params;
+  const { supplier, siteCoords } = params;
   const distance = calculateDistance(siteCoords, { lat: supplier.lat, lng: supplier.lng });
-  // Distance est le critere principal: 85 points max, decay plus progressif
-  // Un fournisseur a 0km = 85pts, 5km = 31pts, 10km = 11pts
-  const distanceScore = 85 * Math.exp(-distance / 5);
+  // Distance est le critere principal: 90 points max
+  // Un fournisseur a 0km = 90pts, 5km = 33pts, 10km = 12pts
+  const distanceScore = 90 * Math.exp(-distance / 5);
 
-  const supplierMaterial = supplier.supplier_materials.find(
-    (material) => material.material_id === materialId
-  );
-  const price = supplierMaterial?.price ?? Infinity;
-  const maxPrice = Math.max(...allPrices, 1);
-  // Prix: seulement 10 points max secondaire
-  const priceScore = price === Infinity ? 0 : 10 * (1 - price / maxPrice);
-
-  // Stock: seulement 5 points max
+  // Stock: 10 points max
   const stockScore =
     supplier.stock_availability === "permanent"
-      ? 5
+      ? 10
       : supplier.stock_availability === "partial"
-        ? 3
-        : 1;
+        ? 6
+        : 2;
 
-  return Math.round(Math.max(0, distanceScore + priceScore + stockScore));
+  return Math.round(Math.max(0, distanceScore + stockScore));
 }

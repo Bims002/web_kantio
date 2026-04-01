@@ -231,7 +231,7 @@ export default function SupplierExplorer({
                       A partir de
                     </p>
                     <p className="mt-1 text-sm font-semibold text-kantioo-dark">
-                      {bestPrice ? `${bestPrice.toLocaleString("fr-FR")} FCFA` : "Sur demande"}
+                      Disponible
                     </p>
                   </div>
                 </div>

@@ -12,16 +12,13 @@ export async function GET() {
   }
 
   try {
-    const [ordersResult, suppliersResult, materialsResult, pricesResult] = await Promise.all([
+    const [ordersResult, suppliersResult, materialsResult] = await Promise.all([
       supabaseServer
         .from('orders')
         .select('*, order_items(*)')
         .order('created_at', { ascending: false }),
       supabaseServer.from('suppliers').select('*').order('name'),
       supabaseServer.from('materials').select('*').order('name'),
-      supabaseServer
-        .from('supplier_materials')
-        .select('*, supplier:suppliers(id,name,city), material:materials(*)'),
     ]);
 
     if (ordersResult.error) {
@@ -36,16 +33,11 @@ export async function GET() {
       throw materialsResult.error;
     }
 
-    if (pricesResult.error) {
-      throw pricesResult.error;
-    }
-
     return Response.json({
       adminEmail: auth.session?.email || '',
       orders: ordersResult.data || [],
       suppliers: suppliersResult.data || [],
       materials: materialsResult.data || [],
-      prices: pricesResult.data || [],
     });
   } catch (error) {
     return Response.json(

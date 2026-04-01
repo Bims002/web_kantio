@@ -31,7 +31,6 @@ export interface SupplierMaterial {
   id: string;
   supplier_id: string;
   material_id: string;
-  price: number;
   unit: string;
   material?: Material;
 }
@@ -48,7 +47,6 @@ export interface Order {
   supplier_id: string | null;
   supplier_name: string | null;
   status: 'pending' | 'confirmed' | 'in_delivery' | 'delivered' | 'cancelled';
-  total_price: number | null;
   notes: string | null;
   whatsapp_sent: boolean;
   customer_confirmed: boolean;
@@ -65,6 +63,4 @@ export interface OrderItem {
   material_name: string;
   quantity: number;
   unit: string;
-  unit_price: number;
-  total_price: number;
 }

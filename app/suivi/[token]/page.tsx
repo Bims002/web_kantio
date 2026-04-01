@@ -131,7 +131,7 @@ export default async function TrackingPage({ params }: PageProps) {
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-kantioo-dark">
-                    {item.total_price.toLocaleString("fr-FR")} FCFA
+                    Disponible
                   </p>
                 </div>
               ))}
@@ -142,7 +142,7 @@ export default async function TrackingPage({ params }: PageProps) {
                 Total
               </span>
               <span className="text-lg font-semibold text-kantioo-dark">
-                {order.total_price.toLocaleString("fr-FR")} FCFA
+                —
               </span>
             </div>
           </div>

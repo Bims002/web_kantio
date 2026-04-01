@@ -30,7 +30,6 @@ function buildDraftSummary(draft: OrderDraft) {
     `Contact: ${draft.contactInfo.name} / ${draft.contactInfo.phone}`,
     `Notes: ${draft.contactInfo.notes || "Aucune"}`,
     `Panier: ${items || "Vide"}`,
-    `Total estime: ${draft.totalAmount.toLocaleString("fr-FR")} FCFA`,
     `Delai fournisseur: ${draft.selectedSupplier?.delivery_delay_hours || "Inconnu"}h`,
   ].join("\n");
 }
@@ -66,19 +65,11 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
   }
 
   if (
-    text.includes("prix") ||
-    text.includes("total") ||
-    text.includes("montant") ||
-    text.includes("combien")
+    text.includes("panier") ||
+    text.includes("produit") ||
+    text.includes("article") ||
+    text.includes("materiau")
   ) {
-    return `Pour l instant, votre commande contient ${cartSummary}. Le total estime est de ${draft.totalAmount.toLocaleString("fr-FR")} FCFA chez ${draft.selectedSupplier?.name || "le fournisseur"}.`;
-  }
-
-  if (text.includes("delai") || text.includes("livraison") || text.includes("quand")) {
-    return `Le fournisseur ${draft.selectedSupplier?.name || "choisi"} annonce un delai de ${draft.selectedSupplier?.delivery_delay_hours || "quelques"}h. Si vous voulez, je peux aussi verifier si le quartier de livraison est assez clair pour le livreur.`;
-  }
-
-  if (text.includes("panier") || text.includes("produit") || text.includes("article") || text.includes("materiau")) {
     if (draft.cart.length > 0) {
       return `Votre panier contient ${cartSummary}. ${nextQuestion || ""}`;
     }
@@ -171,7 +162,8 @@ export async function POST(request: Request) {
 
     const instructions =
       "Tu es l'assistant de commande Kantioo. " +
-      "Tu aides uniquement sur la commande en cours: panier, quantites, prix, fournisseur, delai, livraison, contact, prochaines etapes et finalisation. " +
+      "Tu aides uniquement sur la commande en cours: panier, quantites, fournisseur, delai, livraison, contact, prochaines etapes et finalisation. " +
+      "Tu ne parles JAMAIS de prix, de tarifs ou de montants, car Kantioo ne gere plus les prix directement. " +
       "Tu reponds comme une assistante de commande naturelle, concise, calme et utile. " +
       "Tu t appuies toujours sur les elements connus de la commande au lieu de repondre de facon generique. " +
       "Tu ne donnes pas l impression de lire un script ou des reponses pre-enregistrees. " +

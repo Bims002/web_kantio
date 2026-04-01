@@ -54,7 +54,7 @@ export function generateWhatsAppMessage(order: Order): string {
   const items = order.order_items
     ?.map(
       (item) =>
-        `- ${item.material_name} - ${item.quantity} ${item.unit} (${item.unit_price.toLocaleString("fr-FR")} FCFA/${item.unit})`
+        `- ${item.material_name} - ${item.quantity} ${item.unit}`
     )
     .join("\n");
   const trackingUrl = getOrderTrackingUrl(order.tracking_token);
@@ -66,7 +66,7 @@ export function generateWhatsAppMessage(order: Order): string {
     `*Adresse de livraison :* ${order.site_address}\n` +
     `*Nom du chantier :* ${order.site_name}\n` +
     `*Contact client :* ${order.contact_name} - ${order.contact_phone}\n` +
-    `*Total estime :* ${order.total_price?.toLocaleString("fr-FR")} FCFA\n` +
+    `*Total :* Sans tarification (plateforme de mise en relation)\n` +
     `*Lien de suivi :* ${trackingUrl}\n\n` +
     `Merci de confirmer la reception de cette commande. \n*Joseph de Kantioo*`;
 

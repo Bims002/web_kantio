@@ -20,7 +20,7 @@ interface PageProps {
 interface SupplierMaterialEntry {
   id: string;
   material_id: string;
-  price: number;
+  // price removed
   unit: string;
   material?: {
     name: string;
@@ -240,7 +240,7 @@ export default async function SupplierProfile({ params }: PageProps) {
                 Reference disponible pour commande chantier avec recapitulatif immediat.
               </p>
               <p className="mt-5 text-2xl font-semibold text-kantioo-dark">
-                {item.price.toLocaleString("fr-FR")} FCFA
+                Disponible
                 <span className="ml-2 text-sm text-kantioo-muted">/ {item.unit}</span>
               </p>
 

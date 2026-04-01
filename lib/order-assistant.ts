@@ -5,7 +5,6 @@ import type { Supplier } from "./types";
 export interface DraftSupplierMaterial {
   id: string;
   material_id: string;
-  price: number;
   unit: string;
   material?: {
     name: string;
@@ -41,7 +40,6 @@ export interface OrderDraft {
     phone: string;
     notes: string;
   };
-  totalAmount: number;
   createdAt: string;
 }
 
@@ -250,18 +248,7 @@ export function createOrderDraft(input: {
   cart: DraftCartItem[];
   siteInfo?: Partial<OrderDraft["siteInfo"]>;
   contactInfo?: Partial<OrderDraft["contactInfo"]>;
-  totalAmount?: number;
 }): OrderDraft {
-  const totalAmount =
-    input.totalAmount ??
-    input.cart.reduce((sum, item) => {
-      const material = input.selectedSupplier.supplier_materials.find(
-        (entry) => entry.material_id === item.materialId
-      );
-
-      return sum + (material?.price || 0) * item.quantity;
-    }, 0);
-
   return {
     selectedSupplier: {
       ...input.selectedSupplier,
@@ -281,7 +268,6 @@ export function createOrderDraft(input: {
       phone: input.contactInfo?.phone || "",
       notes: input.contactInfo?.notes || "",
     },
-    totalAmount,
     createdAt: new Date().toISOString(),
   };
 }
@@ -302,7 +288,6 @@ export function getDraftLines(draft: OrderDraft) {
     return {
       ...item,
       material,
-      lineTotal: (material?.price || 0) * item.quantity,
     };
   });
 }
@@ -517,15 +502,10 @@ export function findBestSupplierForLocation(
     const allDistances = citySuppliers.map(s => calculateDistance(siteCoords, { lat: s.lat, lng: s.lng }));
 
     availableItems.forEach(item => {
-      const allPricesForThisMaterial = citySuppliers
-        .map(s => s.supplier_materials.find(sm => sm.material_id === item.materialId)?.price)
-        .filter((p): p is number => p !== undefined);
-
       totalScore += scoreSupplier({
         supplier,
         siteCoords,
         materialId: item.materialId,
-        allPrices: allPricesForThisMaterial,
         allDistances
       });
     });
@@ -694,10 +674,6 @@ export function recommendSupplierForMaterial(input: {
     return null;
   }
 
-  const allPrices = eligibleSuppliers.map(
-    (supplier) =>
-      supplier.supplier_materials.find((item) => item.material_id === materialId)?.price || 0
-  );
   const allDistances = eligibleSuppliers.map((supplier) =>
     calculateDistance(siteCoords, { lat: supplier.lat, lng: supplier.lng })
   );
@@ -720,7 +696,6 @@ export function recommendSupplierForMaterial(input: {
           supplier,
           siteCoords,
           materialId,
-          allPrices,
           allDistances,
         }),
       };

@@ -19,7 +19,6 @@ import {
 interface SupplierMaterialEntry {
   id: string;
   material_id: string;
-  price: number;
   unit: string;
   material?: {
     name: string;
@@ -65,7 +64,7 @@ export default function CheckoutForm({
       (material) => material.material_id === item.materialId
     );
 
-    return total + (matchedMaterial?.price || 0) * item.quantity;
+    return 0;
   }, 0);
 
   const canHandOffToAssistant = Boolean(selectedSupplier) && cart.length > 0;
@@ -85,7 +84,6 @@ export default function CheckoutForm({
         cart,
         siteInfo,
         contactInfo,
-        totalAmount,
       });
 
       sessionStorage.setItem('kantioo-order-draft', JSON.stringify(draft));
@@ -177,7 +175,7 @@ export default function CheckoutForm({
                         <p className="mt-2 text-sm text-kantioo-muted">{item.unit}</p>
                       </div>
                       <p className="text-right text-sm font-semibold text-kantioo-dark">
-                        {item.price.toLocaleString('fr-FR')} FCFA
+                        Disponible
                       </p>
                     </div>
 
@@ -293,7 +291,7 @@ export default function CheckoutForm({
                 Total
               </p>
               <p className="mt-1 text-lg font-semibold text-kantioo-dark">
-                {totalAmount.toLocaleString('fr-FR')} FCFA
+                Total estimé : —
               </p>
             </div>
           </div>
@@ -320,7 +318,7 @@ export default function CheckoutForm({
                         </p>
                       </div>
                       <p className="text-sm font-semibold text-kantioo-dark">
-                        {((matchedMaterial?.price || 0) * item.quantity).toLocaleString('fr-FR')} FCFA
+                        —
                       </p>
                     </div>
                   </div>

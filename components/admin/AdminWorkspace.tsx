@@ -27,18 +27,11 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-type AdminTab = 'orders' | 'suppliers' | 'materials' | 'pricing';
-type PricingView = 'list' | 'by-supplier' | 'comparison';
-type AdjustmentType = 'increase' | 'decrease';
-type SupplierTab = 'info' | 'products' | 'prices';
+type AdminTab = 'orders' | 'suppliers' | 'materials';
+type SupplierTab = 'info' | 'products';
 
 interface AdminOrder extends Order {
   order_items?: OrderItem[];
-}
-
-interface AdminPrice extends SupplierMaterial {
-  supplier?: Pick<Supplier, 'id' | 'name' | 'city'>;
-  material?: Material;
 }
 
 interface SupplierForm {
@@ -64,13 +57,6 @@ interface MaterialForm {
   icon: string;
 }
 
-interface PriceForm {
-  supplier_id: string;
-  material_id: string;
-  price: string;
-  unit: string;
-}
-
 const emptySupplier = (): SupplierForm => ({
   name: '',
   phone: '',
@@ -92,13 +78,6 @@ const emptyMaterial = (): MaterialForm => ({
   category: '',
   unit: '',
   icon: '',
-});
-
-const emptyPrice = (): PriceForm => ({
-  supplier_id: '',
-  material_id: '',
-  price: '',
-  unit: '',
 });
 
 const statusTone: Record<AdminOrder['status'], string> = {
@@ -157,32 +136,19 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [prices, setPrices] = useState<AdminPrice[]>([]);
 
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
-  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [supplierForm, setSupplierForm] = useState<SupplierForm>(emptySupplier);
   const [materialForm, setMaterialForm] = useState<MaterialForm>(emptyMaterial);
   const [newCategoryName, setNewCategoryName] = useState<string>('');
-  const [priceForm, setPriceForm] = useState<PriceForm>(emptyPrice);
   const [searchQuery, setSearchQuery] = useState('');
-  const [adminFilter, setAdminFilter] = useState<'all' | 'orders' | 'suppliers' | 'materials' | 'pricing'>('all');
-
-  // Pricing view state
-  const [pricingView, setPricingView] = useState<PricingView>('list');
-  const [selectedSupplierForEdit, setSelectedSupplierForEdit] = useState<string | null>(null);
-  const [editablePrices, setEditablePrices] = useState<Record<string, string>>({});
-  const [adjustmentPercent, setAdjustmentPercent] = useState<string>('5');
-  const [adjustmentType, setAdjustmentType] = useState<AdjustmentType>('increase');
-
-  type AdminFilterConfig = { key: 'all' | 'orders' | 'suppliers' | 'materials' | 'pricing'; label: string; icon: React.ElementType; color: string };
+  type AdminFilterConfig = { key: 'all' | 'orders' | 'suppliers' | 'materials'; label: string; icon: React.ElementType; color: string };
   const ADMIN_FILTER_CONFIG: AdminFilterConfig[] = [
     { key: 'all', label: 'Tout', icon: ShoppingBag, color: 'bg-kantioo-dark text-white' },
     { key: 'orders', label: 'Commandes', icon: ShoppingBag, color: 'bg-blue-600 text-white' },
     { key: 'suppliers', label: 'Fournisseurs', icon: Users, color: 'bg-emerald-600 text-white' },
     { key: 'materials', label: 'Articles', icon: PackageSearch, color: 'bg-amber-600 text-white' },
-    { key: 'pricing', label: 'Tarifs', icon: Banknote, color: 'bg-purple-600 text-white' },
   ];
 
   const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -215,14 +181,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     );
   }, [materials, normalizedSearch]);
 
-  const filteredPrices = useMemo(() => {
-    if (!normalizedSearch) return prices;
-    return prices.filter(p => 
-      p.supplier?.name.toLowerCase().includes(normalizedSearch) ||
-      p.material?.name.toLowerCase().includes(normalizedSearch)
-    );
-  }, [prices, normalizedSearch]);
-
   // Extract unique categories from materials
   const uniqueCategories = useMemo(() => {
     const categories = new Set<string>();
@@ -236,14 +194,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   // Get materials for a specific supplier
   const getSupplierMaterials = (supplierId: string) => {
-    return prices
-      .filter((p) => p.supplier_id === supplierId)
-      .map((p) => ({
-        ...p,
-        materialName: p.material?.name || 'Article',
-        materialIcon: p.material?.icon || '📦',
-      }))
-      .sort((a, b) => (a.materialName || '').localeCompare(b.materialName || ''));
+    return []; // A refactoriser si on veut garder la liste des produits sans prix
   };
 
   // ---- READ via Supabase anon client (RLS allows SELECT on all tables) ----
@@ -251,22 +202,19 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   const refreshAll = async () => {
     setRefreshing(true);
     try {
-      const [ordersRes, suppliersRes, materialsRes, pricesRes] = await Promise.all([
+      const [ordersRes, suppliersRes, materialsRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
         supabase.from('suppliers').select('*').order('name'),
         supabase.from('materials').select('*').order('name'),
-        supabase.from('supplier_materials').select('*, supplier:suppliers(id,name,city), material:materials(*)'),
       ]);
 
       if (ordersRes.error) throw ordersRes.error;
       if (suppliersRes.error) throw suppliersRes.error;
       if (materialsRes.error) throw materialsRes.error;
-      if (pricesRes.error) throw pricesRes.error;
 
       setOrders((ordersRes.data || []) as AdminOrder[]);
       setSuppliers((suppliersRes.data || []) as Supplier[]);
       setMaterials((materialsRes.data || []) as Material[]);
-      setPrices((pricesRes.data || []) as AdminPrice[]);
       setMessage(null);
     } catch (error) {
       console.error('Admin refresh error', error);
@@ -282,10 +230,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalRevenue = useMemo(
-    () => orders.reduce((sum, order) => sum + (order.total_price || 0), 0),
-    [orders]
-  );
+  const totalRevenue = 0;
 
   const resetSupplierForm = () => {
     setEditingSupplierId(null);
@@ -296,11 +241,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     setEditingMaterialId(null);
     setMaterialForm(emptyMaterial());
     setNewCategoryName('');
-  };
-
-  const resetPriceForm = () => {
-    setEditingPriceId(null);
-    setPriceForm(emptyPrice());
   };
 
   // ---- WRITE operations go through admin API routes (server-side service role key) ----
@@ -382,39 +322,8 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     await refreshAll();
   };
 
-  const savePrice = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const payload = {
-      supplier_id: priceForm.supplier_id,
-      material_id: priceForm.material_id,
-      price: Number.parseFloat(priceForm.price) || 0,
-      unit: priceForm.unit.trim(),
-    };
-    if (!payload.supplier_id || !payload.material_id || !payload.price || !payload.unit) {
-      setMessage({ type: 'error', text: 'Fournisseur, article, prix et unite sont obligatoires.' });
-      return;
-    }
 
-    const url = editingPriceId
-      ? `/api/admin/pricing/${editingPriceId}`
-      : '/api/admin/pricing';
-    const method = editingPriceId ? 'PATCH' : 'POST';
-
-    const { error } = await adminFetch(url, {
-      method,
-      body: JSON.stringify(payload),
-    });
-
-    if (error) {
-      setMessage({ type: 'error', text: error });
-      return;
-    }
-    setMessage({ type: 'success', text: 'Tarif enregistre.' });
-    resetPriceForm();
-    await refreshAll();
-  };
-
-  const removeRecord = async (table: 'suppliers' | 'materials' | 'supplier_materials', id: string) => {
+  const removeRecord = async (table: 'suppliers' | 'materials', id: string) => {
     if (!window.confirm('Confirmer la suppression ?')) {
       return;
     }
@@ -423,7 +332,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     const routeMap: Record<string, string> = {
       suppliers: `/api/admin/suppliers/${id}`,
       materials: `/api/admin/materials/${id}`,
-      supplier_materials: `/api/admin/pricing/${id}`,
     };
 
     const { error } = await adminFetch(routeMap[table], {
@@ -467,103 +375,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     window.location.reload();
   };
 
-  // Pricing adjustments
-  const applyPercentageAdjustment = async (supplierId: string, percent: number) => {
-    if (!window.confirm(`Appliquer ${adjustmentType === 'increase' ? '+' : '-'}${percent}% à tous les tarifs de ce fournisseur ?`)) {
-      return;
-    }
-
-    setRefreshing(true);
-    try {
-      const supplierPrices = prices.filter((p) => p.supplier_id === supplierId);
-      const updates = await Promise.all(
-        supplierPrices.map((price) => {
-          const factor = adjustmentType === 'increase' ? 1 + percent / 100 : 1 - percent / 100;
-          const newPrice = Math.round(price.price * factor);
-          return adminFetch(`/api/admin/pricing/${price.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              supplier_id: price.supplier_id,
-              material_id: price.material_id,
-              price: newPrice,
-              unit: price.unit,
-            }),
-          });
-        })
-      );
-
-      const hasError = updates.some((u) => u.error);
-      if (hasError) {
-        setMessage({ type: 'error', text: 'Erreur lors de la mise a jour de certains tarifs.' });
-      } else {
-        setMessage({ type: 'success', text: `${adjustmentType === 'increase' ? '+' : '-'}${percent}% applique avec succes.` });
-      }
-      await refreshAll();
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Erreur lors de l\'ajustement des tarifs.' });
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const saveEditablePrices = async () => {
-    if (!Object.keys(editablePrices).length) {
-      setMessage({ type: 'error', text: 'Aucune modification a enregistrer.' });
-      return;
-    }
-
-    setRefreshing(true);
-    try {
-      const updates = Object.entries(editablePrices).map(([priceId, newPrice]) => {
-        const price = prices.find((p) => p.id === priceId);
-        if (!price) return Promise.resolve({ error: null });
-        return adminFetch(`/api/admin/pricing/${priceId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({
-            supplier_id: price.supplier_id,
-            material_id: price.material_id,
-            price: Number.parseFloat(newPrice) || 0,
-            unit: price.unit,
-          }),
-        });
-      });
-
-      const results = await Promise.all(updates);
-      const hasError = results.some((r) => r.error);
-      if (hasError) {
-        setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement de certains tarifs.' });
-      } else {
-        setMessage({ type: 'success', text: 'Tarifs enregistres avec succes.' });
-        setEditablePrices({});
-      }
-      await refreshAll();
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement.' });
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Pricing data compilation
-  const pricesBySupplier = useMemo(() => {
-    const map: Record<string, AdminPrice[]> = {};
-    prices.forEach((price) => {
-      const key = price.supplier_id;
-      if (!map[key]) map[key] = [];
-      map[key].push(price);
-    });
-    return map;
-  }, [prices]);
-
-  const pricesByMaterial = useMemo(() => {
-    const map: Record<string, AdminPrice[]> = {};
-    prices.forEach((price) => {
-      const key = price.material_id;
-      if (!map[key]) map[key] = [];
-      map[key].push(price);
-    });
-    return map;
-  }, [prices]);
 
   const handleCsvImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -623,7 +434,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
               { id: 'orders' as const, label: 'Commandes', icon: ShoppingBag },
               { id: 'suppliers' as const, label: 'Fournisseurs', icon: Users },
               { id: 'materials' as const, label: 'Articles', icon: PackageSearch },
-              { id: 'pricing' as const, label: 'Tarifs', icon: Banknote },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = tab.id === activeTab;
@@ -663,8 +473,8 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
         <main className="min-w-0 flex-1 space-y-8">
           <header className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="panel px-5 py-4">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-kantioo-muted">CA estime</p>
-              <p className="mt-2 text-xl font-black text-kantioo-dark">{totalRevenue.toLocaleString('fr-FR')} FCFA</p>
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-kantioo-muted">Etat Global</p>
+              <p className="mt-2 text-xl font-black text-kantioo-dark">Operationnel</p>
             </div>
             <div className="panel px-5 py-4">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-kantioo-muted">Commandes</p>
@@ -737,7 +547,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                     <h3 className="mt-4 text-2xl font-black tracking-tight text-kantioo-dark">{order.site_name}</h3>
                     <p className="mt-2 text-sm text-kantioo-muted">{order.site_address}</p>
                     <p className="mt-3 text-sm text-kantioo-dark">{order.contact_name} · {order.contact_phone}</p>
-                    <p className="mt-1 text-sm text-kantioo-muted">{order.supplier_name || 'Sans fournisseur'} · {(order.total_price || 0).toLocaleString('fr-FR')} FCFA</p>
+                    <p className="mt-1 text-sm text-kantioo-muted">{order.supplier_name || 'Sans fournisseur'}</p>
                   </div>
                   <div className="flex flex-col gap-3 xl:w-[320px]">
                     {(() => {
@@ -872,91 +682,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                   </form>
                 ) : null}
 
-                {activeTab === 'pricing' ? (
-                  <div className="space-y-4">
-                    {/* View Tabs */}
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPricingView('list');
-                          setSelectedSupplierForEdit(null);
-                          setEditablePrices({});
-                        }}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${pricingView === 'list' ? 'bg-kantioo-dark text-white' : 'border border-kantioo-line bg-white text-kantioo-dark hover:bg-kantioo-sand'}`}
-                      >
-                        📋 Liste
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPricingView('by-supplier');
-                          setEditablePrices({});
-                        }}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${pricingView === 'by-supplier' ? 'bg-kantioo-dark text-white' : 'border border-kantioo-line bg-white text-kantioo-dark hover:bg-kantioo-sand'}`}
-                      >
-                        📊 Par fournisseur
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPricingView('comparison');
-                          setEditablePrices({});
-                        }}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold ${pricingView === 'comparison' ? 'bg-kantioo-dark text-white' : 'border border-kantioo-line bg-white text-kantioo-dark hover:bg-kantioo-sand'}`}
-                      >
-                        🔍 Comparaison
-                      </button>
-                    </div>
-
-                    {/* Adjustment Controls - Only show in by-supplier view */}
-                    {pricingView === 'by-supplier' && (
-                      <div className="rounded-[18px] border border-kantioo-line p-4 bg-kantioo-sand space-y-3">
-                        <p className="text-sm font-semibold text-kantioo-dark">Ajustement % en masse</p>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <select
-                            value={adjustmentType}
-                            onChange={(e) => setAdjustmentType(e.target.value as AdjustmentType)}
-                            className="rounded-lg border border-kantioo-line px-3 py-2 text-sm"
-                          >
-                            <option value="increase">Augmenter (+)</option>
-                            <option value="decrease">Réduire (-)</option>
-                          </select>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={adjustmentPercent}
-                              onChange={(e) => setAdjustmentPercent(e.target.value)}
-                              min="1"
-                              max="100"
-                              className="flex-1 rounded-lg border border-kantioo-line px-3 py-2 text-sm"
-                              placeholder="%"
-                            />
-                            <span className="flex items-center text-sm font-semibold">%</span>
-                          </div>
-                          <p className="text-xs text-kantioo-muted pt-2">Pré-remplissez le % puis cliquez sur le bouton d&apos;ajustement dans le tableau du fournisseur.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Form for adding new price - Only show in list view */}
-                    {pricingView === 'list' && (
-                      <form onSubmit={savePrice} className="rounded-[18px] border border-kantioo-line p-4 space-y-4 bg-white">
-                        <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{editingPriceId ? 'Modifier un tarif' : 'Ajouter un tarif'}</h3>
-                        <select value={priceForm.supplier_id} onChange={(event) => setPriceForm((current) => ({ ...current, supplier_id: event.target.value }))} className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"><option value="">Choisir un fournisseur</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name} · {formatCityLabel(supplier.city)}</option>)}</select>
-                        <select value={priceForm.material_id} onChange={(event) => setPriceForm((current) => ({ ...current, material_id: event.target.value }))} className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"><option value="">Choisir un article</option>{materials.map((material) => <option key={material.id} value={material.id}>{material.name}</option>)}</select>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <input value={priceForm.price} onChange={(event) => setPriceForm((current) => ({ ...current, price: event.target.value }))} placeholder="Prix FCFA" className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none" />
-                          <input value={priceForm.unit} onChange={(event) => setPriceForm((current) => ({ ...current, unit: event.target.value }))} placeholder="Unite de vente" className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none" />
-                        </div>
-                        <div className="flex gap-3">
-                          <button type="submit" className="action-primary flex-1 justify-center gap-2"><Plus size={16} />Enregistrer</button>
-                          {editingPriceId ? <button type="button" onClick={resetPriceForm} className="action-secondary">Annuler</button> : null}
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                ) : null}
               </section>
 
               <section className="space-y-4">
@@ -1025,13 +750,6 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                         >
                           Articles ({supplierMaterials.length})
                         </button>
-                        <button 
-                          type="button"
-                          onClick={() => setSupplierTabActive('prices')}
-                          className={`px-4 py-3 font-semibold ${supplierTabActive === 'prices' ? 'border-b-2 border-kantioo-orange text-kantioo-dark' : 'text-kantioo-muted'}`}
-                        >
-                          Tarification
-                        </button>
                       </div>
 
                       {/* Info Tab */}
@@ -1078,11 +796,10 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                               <div key={item.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
                                   <h3 className="text-xl font-black text-kantioo-dark">{item.materialIcon} {item.materialName}</h3>
-                                  <p className="mt-1 text-sm text-kantioo-muted">{(item.price || 0).toLocaleString('fr-FR')} FCFA / {item.unit}</p>
+                                  <p className="mt-1 text-sm text-kantioo-muted">{item.unit}</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                  <button type="button" onClick={() => { setEditingPriceId(item.id); setPriceForm({ supplier_id: item.supplier_id, material_id: item.material_id, price: String(item.price), unit: item.unit }); }} className="action-secondary gap-2"><Pencil size={16} />Modifier prix</button>
-                                  <button type="button" onClick={() => void removeRecord('supplier_materials', item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
+                                  <button type="button" onClick={() => void removeRecord('materials', item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
                                 </div>
                               </div>
                             ))
@@ -1090,201 +807,10 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                         </div>
                       )}
 
-                      {/* Pricing Tab - Add Material to Supplier */}
-                      {supplierTabActive === 'prices' && (
-                        <form onSubmit={async (e) => {
-                          e.preventDefault();
-                          const payload = {
-                            supplier_id: selectedSupplierId,
-                            material_id: priceForm.material_id,
-                            price: Number.parseFloat(priceForm.price) || 0,
-                            unit: priceForm.unit.trim(),
-                          };
-                          if (!payload.material_id || !payload.price || !payload.unit) {
-                            setMessage({ type: 'error', text: 'Article, prix et unite obligatoires.' });
-                            return;
-                          }
-
-                          const url = editingPriceId ? `/api/admin/pricing/${editingPriceId}` : '/api/admin/pricing';
-                          const method = editingPriceId ? 'PATCH' : 'POST';
-
-                          const { error } = await adminFetch(url, { method, body: JSON.stringify(payload) });
-
-                          if (error) {
-                            setMessage({ type: 'error', text: error });
-                            return;
-                          }
-                          setMessage({ type: 'success', text: 'Tarif enregistre.' });
-                          resetPriceForm();
-                          await refreshAll();
-                        }} className="panel p-6 space-y-4">
-                          <h3 className="text-2xl font-black text-kantioo-dark">{editingPriceId ? 'Modifier le tarif' : 'Ajouter un article'}</h3>
-                          
-                          {/* Only show available materials not already in supplier */}
-                          <select 
-                            value={priceForm.material_id} 
-                            onChange={(e) => setPriceForm((current) => ({ ...current, material_id: e.target.value }))}
-                            className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
-                          >
-                            <option value="">Choisir un article</option>
-                            {materials
-                              .filter(m => !supplierMaterials.some(sm => sm.material_id === m.id) || editingPriceId)
-                              .map(m => (
-                                <option key={m.id} value={m.id}>{m.icon || '📦'} {m.name} ({m.category})</option>
-                              ))}
-                          </select>
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <input 
-                              type="number"
-                              value={priceForm.price} 
-                              onChange={(e) => setPriceForm((current) => ({ ...current, price: e.target.value }))}
-                              placeholder="Prix FCFA" 
-                              className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
-                            />
-                            <input 
-                              value={priceForm.unit} 
-                              onChange={(e) => setPriceForm((current) => ({ ...current, unit: e.target.value }))}
-                              placeholder="Unite (sac, kg, metre...)" 
-                              className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
-                            />
-                          </div>
-
-                          <div className="flex gap-3">
-                            <button type="submit" className="action-primary flex-1 justify-center gap-2"><Plus size={16} />Enregistrer</button>
-                            {editingPriceId ? <button type="button" onClick={resetPriceForm} className="action-secondary">Annuler</button> : null}
-                          </div>
-                        </form>
-                      )}
                     </div>
                   );
                 })() : null}
 
-                {activeTab === 'pricing' && pricingView === 'list' ? filteredPrices.map((price) => (
-                  <div key={price.id} className="panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{price.supplier?.name || 'Fournisseur'} · {price.material?.name || 'Article'}</h3>
-                      <p className="mt-2 text-sm text-kantioo-muted">{(price.price || 0).toLocaleString('fr-FR')} FCFA / {price.unit}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={() => { setEditingPriceId(price.id); setPriceForm({ supplier_id: price.supplier_id, material_id: price.material_id, price: String(price.price), unit: price.unit }); }} className="action-secondary gap-2"><Pencil size={16} />Modifier</button>
-                      <button type="button" onClick={() => void removeRecord('supplier_materials', price.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Supprimer</button>
-                    </div>
-                  </div>
-                )) : null}
-
-                {activeTab === 'pricing' && pricingView === 'by-supplier' ? (
-                  <div className="space-y-4">
-                    {suppliers.filter((s) => s.is_active).map((supplier) => {
-                      const supplierPrices = pricesBySupplier[supplier.id] || [];
-                      if (supplierPrices.length === 0) return null;
-
-                      return (
-                        <div key={supplier.id} className="panel space-y-4 p-6">
-                          <div className="flex flex-col gap-3 items-start lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                              <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{supplier.name}</h3>
-                              <p className="mt-1 text-sm text-kantioo-muted">{formatCityLabel(supplier.city)}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <button type="button" onClick={() => void applyPercentageAdjustment(supplier.id, Number.parseInt(adjustmentPercent, 10))} disabled={refreshing} className="inline-flex items-center gap-2 rounded-full bg-kantioo-orange px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><TrendingUp size={16} />{adjustmentType === 'increase' ? '+' : '-'}{adjustmentPercent}%</button>
-                              {Object.keys(editablePrices).length > 0 && <button type="button" onClick={() => void saveEditablePrices()} disabled={refreshing} className="action-primary gap-2"><Plus size={16} />Enregistrer modifications</button>}
-                            </div>
-                          </div>
-
-                          <div className="overflow-x-auto -mx-6 px-6">
-                            <table className="w-full text-left text-sm">
-                              <thead className="border-b border-kantioo-line">
-                                <tr>
-                                  <th className="px-3 py-2 font-semibold text-kantioo-dark">Article</th>
-                                  <th className="px-3 py-2 font-semibold text-kantioo-dark">Prix</th>
-                                  <th className="px-3 py-2 font-semibold text-kantioo-dark">Unité</th>
-                                  <th className="px-3 py-2 font-semibold text-kantioo-dark">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {supplierPrices.map((price) => (
-                                  <tr key={price.id} className="border-b border-kantioo-sand">
-                                    <td className="px-3 py-3 text-kantioo-dark font-semibold">{price.material?.name || 'Article'}</td>
-                                    <td className="px-3 py-3">
-                                      <input
-                                        type="number"
-                                        value={editablePrices[price.id] !== undefined ? editablePrices[price.id] : price.price}
-                                        onChange={(e) => setEditablePrices((prev) => ({ ...prev, [price.id]: e.target.value }))}
-                                        className="w-32 rounded-lg border border-kantioo-line px-2 py-1 text-sm"
-                                      />
-                                    </td>
-                                    <td className="px-3 py-3 text-kantioo-muted">{price.unit}</td>
-                                    <td className="px-3 py-3">
-                                      <button type="button" onClick={() => void removeRecord('supplier_materials', price.id)} className="text-red-600 hover:text-red-800 text-xs font-semibold"><Trash2 size={14} /></button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {activeTab === 'pricing' && pricingView === 'comparison' ? (
-                  <div className="space-y-4">
-                    {materials.map((material) => {
-                      const materialPrices = pricesByMaterial[material.id] || [];
-                      if (materialPrices.length === 0) return null;
-
-                      const avgPrice = materialPrices.reduce((sum, p) => sum + p.price, 0) / materialPrices.length;
-                      const sorted = [...materialPrices].sort((a, b) => a.price - b.price);
-
-                      return (
-                        <div key={material.id} className="panel space-y-4 p-6">
-                          <div>
-                            <h3 className="text-2xl font-black tracking-tight text-kantioo-dark">{material.icon || '📦'} {material.name}</h3>
-                            <p className="mt-1 text-sm text-kantioo-muted">{material.category} · Unité: {material.unit}</p>
-                          </div>
-
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="rounded-lg bg-kantioo-sand p-3">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-kantioo-muted">Moyenne</p>
-                              <p className="mt-1 text-2xl font-black text-kantioo-dark">{Math.round(avgPrice).toLocaleString('fr-FR')} FCFA</p>
-                            </div>
-                            <div className="rounded-lg bg-green-50 p-3">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-green-700">Min ({sorted[0].supplier?.name})</p>
-                              <p className="mt-1 text-2xl font-black text-green-700">{sorted[0].price.toLocaleString('fr-FR')} FCFA</p>
-                            </div>
-                            <div className="rounded-lg bg-red-50 p-3">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-red-700">Max ({sorted[sorted.length - 1].supplier?.name})</p>
-                              <p className="mt-1 text-2xl font-black text-red-700">{sorted[sorted.length - 1].price.toLocaleString('fr-FR')} FCFA</p>
-                            </div>
-                            <div className="rounded-lg bg-blue-50 p-3">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-blue-700">Écart</p>
-                              <p className="mt-1 text-2xl font-black text-blue-700">{Math.round(((sorted[sorted.length - 1].price - sorted[0].price) / sorted[0].price) * 100)}%</p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            {sorted.map((price, idx) => {
-                              const variance = ((price.price - avgPrice) / avgPrice) * 100;
-                              return (
-                                <div key={price.id} className="flex items-center gap-3 rounded-lg border border-kantioo-line p-3">
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-kantioo-dark">{idx + 1}. {price.supplier?.name}</p>
-                                    <p className="text-sm text-kantioo-muted">{price.unit} · {(price.price || 0).toLocaleString('fr-FR')} FCFA</p>
-                                  </div>
-                                  <div className={`rounded-full px-3 py-1 text-sm font-semibold ${variance < -5 ? 'bg-green-100 text-green-700' : variance > 5 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {variance > 0 ? '+' : ''}{variance.toFixed(1)}%
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
               </section>
             </div>
           ) : null}

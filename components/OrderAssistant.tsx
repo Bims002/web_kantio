@@ -109,7 +109,6 @@ function buildRecommendationReply(input: {
   }
 
   const nextQuestion = getNextDraftQuestion(recommendation.draft);
-  const priceLine = `${matchedMaterial.price.toLocaleString('fr-FR')} FCFA par ${matchedMaterial.unit}`;
   const distanceLine = `${recommendation.distanceKm.toFixed(1)} km`;
 
   return (
@@ -223,7 +222,6 @@ export default function OrderAssistant({
             phone: '',
             notes: '',
           },
-          totalAmount: 0,
           createdAt: new Date().toISOString(),
         };
         setDraft(initialLocationDraft);
@@ -594,7 +592,7 @@ export default function OrderAssistant({
         let reply = '';
         if (supplierChanged && updatedDraft.selectedSupplier) {
           reply = `D'accord, pour ${validation.normalizedValue}, j'ai trouve un meilleur fournisseur : **${updatedDraft.selectedSupplier.name}**. ` +
-            `Le montant total est maintenant de **${updatedDraft.totalAmount.toLocaleString('fr-FR')} FCFA**. Voulez-vous continuer ?`;
+            `Voulez-vous continuer ?`;
         }
 
         await queueAssistantReply({
@@ -716,7 +714,6 @@ export default function OrderAssistant({
           contact_phone: draft.contactInfo.phone,
           supplier_id: draft.selectedSupplier?.id,
           supplier_name: draft.selectedSupplier?.name,
-          total_price: draft.totalAmount,
           notes: draft.contactInfo.notes,
         })
         .select()
@@ -737,8 +734,6 @@ export default function OrderAssistant({
           material_name: material?.material?.name || 'Inconnu',
           quantity: item.quantity,
           unit: material?.unit || 'unite',
-          unit_price: material?.price || 0,
-          total_price: (material?.price || 0) * item.quantity,
         };
       });
 
@@ -859,7 +854,7 @@ export default function OrderAssistant({
                 <div className="mt-4 space-y-3 rounded-[24px] bg-kantioo-sand p-4 text-sm text-kantioo-dark">
                   <div className="flex items-center gap-3">
                     <Truck size={16} className="text-kantioo-orange" />
-                    {draft.selectedSupplier?.name || 'En attente'}
+                    {draft.selectedSupplier?.name || "En attente"}
                   </div>
                   <div className="flex items-center gap-3">
                     <MapPin size={16} className="text-kantioo-orange" />
@@ -878,11 +873,13 @@ export default function OrderAssistant({
                     </p>
                     <p className="mt-3 text-sm leading-7 text-kantioo-dark">
                       {nextDraftField
-                        ? `Prochaine information demandee: ${getRequiredFieldLabel(nextDraftField)}.`
-                        : 'Toutes les informations indispensables ont ete recueillies dans la conversation.'}
+                        ? `Prochaine information demandée: ${getRequiredFieldLabel(nextDraftField)}.`
+                        : "Toutes les informations indispensables ont été recueillies dans la conversation."}
                     </p>
                     {nextDraftQuestion ? (
-                      <p className="mt-2 text-sm leading-7 text-kantioo-muted">{nextDraftQuestion}</p>
+                      <p className="mt-2 text-sm leading-7 text-kantioo-muted">
+                        {nextDraftQuestion}
+                      </p>
                     ) : null}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -894,18 +891,18 @@ export default function OrderAssistant({
                         {formatCityLabel(draft.siteInfo.city)}
                       </p>
                       <p className="mt-1 text-sm leading-6 text-kantioo-muted">
-                        {draft.siteInfo.address || 'Quartier non renseigne'}
+                        {draft.siteInfo.address || "Quartier non renseigné"}
                       </p>
                     </div>
                     <div className="rounded-[22px] bg-white px-4 py-4 ring-1 ring-kantioo-line">
                       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-kantioo-muted">
-                        Contact de reception
+                        Contact de réception
                       </p>
                       <p className="mt-2 text-sm leading-6 text-kantioo-dark">
-                        {draft.contactInfo.name || 'A renseigner dans le chat'}
+                        {draft.contactInfo.name || "À renseigner dans le chat"}
                       </p>
                       <p className="mt-1 text-sm leading-6 text-kantioo-muted">
-                        {draft.contactInfo.phone || 'Numero non renseigne'}
+                        {draft.contactInfo.phone || "Numéro non renseigné"}
                       </p>
                     </div>
                   </div>
@@ -920,34 +917,22 @@ export default function OrderAssistant({
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-kantioo-dark">
-                            {line.material?.material?.name || 'Materiau'}
+                            {line.material?.material?.name || "Matériau"}
                           </p>
                           <p className="mt-1 text-xs uppercase tracking-[0.2em] text-kantioo-muted">
-                            {line.quantity} x {line.material?.unit || 'unite'}
+                            {line.quantity} x {line.material?.unit || "unité"}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-kantioo-dark">
-                          {line.lineTotal.toLocaleString('fr-FR')} FCFA
-                        </p>
                       </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-5 rounded-[24px] bg-kantioo-dark px-5 py-4 text-white">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] opacity-70">
-                    Total estime
-                  </p>
-                  <p className="mt-2 text-lg font-semibold">
-                    {draft.totalAmount.toLocaleString('fr-FR')} FCFA
-                  </p>
                 </div>
               </>
             ) : (
               <div className="mt-4 space-y-3 rounded-[24px] bg-kantioo-sand p-4 text-sm text-kantioo-dark">
                 <div className="flex items-center gap-3">
                   <MapPin size={16} className="text-kantioo-orange" />
-                  {formatCityLabel(recommendationContext?.city) || 'Ville non renseignee'}
+                  {formatCityLabel(recommendationContext?.city) || "Ville non renseignée"}
                 </div>
                 <div className="flex items-center gap-3">
                   <MessageSquare size={16} className="text-kantioo-orange" />
@@ -997,7 +982,7 @@ export default function OrderAssistant({
                 <div className="rounded-[20px] bg-kantioo-sand px-4 py-4 text-sm leading-6 text-kantioo-dark">
                   {activeMaterial ? (
                     <span>
-                      Materiau retenu: <strong>{activeMaterial.name}</strong>. L assistant compare maintenant prix, delai et proximite sur cette base.
+                      Materiau retenu: <strong>{activeMaterial.name}</strong>. L assistant compare maintenant delai et proximite sur cette base.
                     </span>
                   ) : (
                     <span>
