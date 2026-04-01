@@ -48,8 +48,13 @@ export default function SupplierMap({
       }
 
       // Add supplier markers
-      suppliers.forEach((supplier) => {
-        if (!supplier.lat || !supplier.lng) return;
+      let validCount = 0;
+      suppliers.forEach((supplier, index) => {
+        if (!supplier.lat || !supplier.lng) {
+          console.warn(`Supplier[${index + 1}] ${supplier.name} has no coords (lat=${supplier.lat}, lng=${supplier.lng})`);
+          return;
+        }
+        validCount++;
 
         const popup = new mapboxgl.Popup({ offset: 18, maxWidth: '280px' }).setHTML(`
           <div style="padding: 10px 8px; min-width: 200px; font-family: system-ui, sans-serif;">
@@ -120,7 +125,7 @@ export default function SupplierMap({
     // Wait for map to load before adding markers
     nextMap.on('load', () => {
       // Add supplier markers
-      suppliers.forEach((supplier) => {
+      suppliers.forEach((supplier, index) => {
         if (!supplier.lat || !supplier.lng) return;
 
         const popup = new mapboxgl.Popup({ offset: 18, maxWidth: '280px' }).setHTML(`
