@@ -329,6 +329,23 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
   };
 
 
+  const removeSupplierMaterial = async (supplierMaterialId: string) => {
+    if (!window.confirm('Confirmer la suppression de cet article du fournisseur ?')) {
+      return;
+    }
+
+    const { error } = await adminFetch(`/api/admin/supplier-materials/${supplierMaterialId}`, {
+      method: 'DELETE',
+    });
+
+    if (error) {
+      setMessage({ type: 'error', text: error });
+      return;
+    }
+    setMessage({ type: 'success', text: 'Article retire du fournisseur.' });
+    await refreshAll();
+  };
+
   const removeRecord = async (table: 'suppliers' | 'materials', id: string) => {
     if (!window.confirm('Confirmer la suppression ?')) {
       return;
@@ -855,7 +872,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                                   <p className="mt-1 text-sm text-kantioo-muted">{item.unit}</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                  <button type="button" onClick={() => void removeRecord('materials', item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
+                                  <button type="button" onClick={() => void removeSupplierMaterial(item.id)} className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><Trash2 size={16} />Retirer</button>
                                 </div>
                               </div>
                             ))
