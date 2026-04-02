@@ -1,32 +1,37 @@
 import { Order } from "./types";
 
-export const TEST_WHATSAPP_NUMBER = "33616616340";
-export const DEFAULT_COUNTRY_CODE = "33";
+// No more test number - will use actual phone numbers
+export const DEFAULT_COUNTRY_CODE = "237"; // Cameroon
 
 function formatWhatsAppNumber(phone?: string) {
-  const rawNumber = phone || TEST_WHATSAPP_NUMBER;
-  if (!rawNumber) return "";
+  if (!phone) return "";
+  const rawNumber = phone;
   
   // Remove non-digits
   const digits = rawNumber.replace(/\D/g, "");
   
-  // French format: 06... (10 digits) -> replace 0 with 33
-  if (digits.length === 10 && digits.startsWith("0")) {
-    return `${DEFAULT_COUNTRY_CODE}${digits.slice(1)}`;
+  // Cameroon format: 67..., 65..., 69..., etc (9 digits starting with 6) -> prepend 237
+  if (digits.length === 9 && digits.startsWith("6")) {
+    return `${DEFAULT_COUNTRY_CODE}${digits}`;
   }
   
-  // French format: 6... (9 digits) -> prepend 33
-  if (digits.length === 9 && (digits.startsWith("6") || digits.startsWith("7"))) {
+  // Cameroon format: 2... (8 digits starting with 2) -> prepend 237
+  if (digits.length === 8 && digits.startsWith("2")) {
     return `${DEFAULT_COUNTRY_CODE}${digits}`;
   }
 
-  // Already has country code (e.g. 336... or 2376...)
+  // Already has country code (e.g. 2376...)
   if (digits.length >= 11) {
     return digits;
   }
+  
+  // If it has 9 digits starting with country code (237)
+  if (digits.startsWith("237") && digits.length === 12) {
+    return digits;
+  }
 
-  // Fallback: use digits as is or prepend default if it looks like a local number
-  return digits;
+  // Fallback: use digits as is
+  return digits || "237600000000";
 }
 
 function getAppBaseUrl() {

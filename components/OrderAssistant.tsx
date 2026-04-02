@@ -714,6 +714,7 @@ export default function OrderAssistant({
           contact_phone: draft.contactInfo.phone,
           supplier_id: draft.selectedSupplier?.id,
           supplier_name: draft.selectedSupplier?.name,
+          supplier_phone: draft.selectedSupplier?.phone || null,
           notes: draft.contactInfo.notes,
         })
         .select()
@@ -745,6 +746,7 @@ export default function OrderAssistant({
 
       const whatsappOrder: Order = {
         ...order,
+        supplier_phone: draft.selectedSupplier?.phone || null,
         order_items: orderItems,
       };
       const whatsappLink = buildWhatsAppLink(generateWhatsAppMessage(whatsappOrder));

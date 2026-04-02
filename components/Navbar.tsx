@@ -21,7 +21,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href="/fournisseurs"
             className="inline-flex items-center gap-2 rounded-full bg-kantioo-orange px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-24px_rgba(232,101,10,0.85)] hover:-translate-y-0.5 hover:bg-[#c84f00] sm:px-5"
           >
             Demarrer

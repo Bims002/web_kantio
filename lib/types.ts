@@ -46,6 +46,7 @@ export interface Order {
   contact_phone: string;
   supplier_id: string | null;
   supplier_name: string | null;
+  supplier_phone: string | null;
   status: 'pending' | 'confirmed' | 'in_delivery' | 'delivered' | 'cancelled';
   notes: string | null;
   whatsapp_sent: boolean;
