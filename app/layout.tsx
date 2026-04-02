@@ -23,6 +23,20 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${bodyFont.variable} ${displayFont.variable}`}>
       <body className="bg-background text-foreground antialiased">
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-T22ZSTVKKN"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-T22ZSTVKKN');
+          `}
+        </Script>
+
         {/* Hotjar Tracking Code */}
         <Script id="hotjar">
           {`
