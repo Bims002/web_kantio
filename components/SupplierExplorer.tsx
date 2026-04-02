@@ -124,9 +124,11 @@ export default function SupplierExplorer({
     setCartItems(prev => prev.filter(c => !(c.materialId === materialId && c.supplierId === supplierId)));
   }, []);
 
-  const cities = Array.from(
-    new Set(suppliers.map((supplier) => formatCityLabel(supplier.city)))
-  ).sort();
+  // Only show Douala and Yaoundé as options
+  const CITIES = ['Douala', 'Yaoundé'];
+  const cities = CITIES.filter(c => 
+    suppliers.some(s => formatCityLabel(s.city) === c)
+  );
   const materials = Array.from(
     new Set(
       suppliers.flatMap((supplier) =>

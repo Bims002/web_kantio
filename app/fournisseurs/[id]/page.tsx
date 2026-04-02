@@ -136,7 +136,7 @@ export default async function SupplierProfile({ params }: PageProps) {
                   Materiaux les plus visibles
                 </h2>
               </div>
-              <Link href={`/commander?supplier=${s.id}`} className="action-primary gap-2">
+              <Link href={`/assistant-commande?supplier=${s.id}&city=${encodeURIComponent(formatCityLabel(s.city))}`} className="action-primary gap-2">
                 Commander chez ce fournisseur
                 <ArrowRight size={16} />
               </Link>
@@ -158,7 +158,7 @@ export default async function SupplierProfile({ params }: PageProps) {
         <aside className="space-y-6">
           <div className="panel p-6">
             <div className="space-y-3">
-              <Link href={`/commander?supplier=${s.id}`} className="action-primary flex w-full gap-2">
+              <Link href={`/assistant-commande?supplier=${s.id}&city=${encodeURIComponent(formatCityLabel(s.city))}`} className="action-primary flex w-full gap-2">
                 <Truck size={18} />
                 Commander maintenant
               </Link>
