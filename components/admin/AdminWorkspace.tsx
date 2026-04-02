@@ -451,7 +451,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
 
   // Fetch supplier materials from Supabase
   const [supplierMaterialsMap, setSupplierMaterialsMap] = useState<Record<string, { id: string; supplier_id: string; material_id: string; unit: string; material?: Material }[]>>({});
-  const [newProductForm, setNewProductForm] = useState({ materialId: '', unit: '' });
+  const [newProductForm, setNewProductForm] = useState({ materialId: '' });
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
@@ -881,13 +881,14 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       setMessage({ type: 'error', text: 'Selectionnez un article' });
                       return;
                     }
+                    const selectedMaterial = materials.find(m => m.id === newProductForm.materialId);
                     const response = await fetch('/api/admin/supplier-materials', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         supplier_id: selectedSupplierId,
                         material_id: newProductForm.materialId,
-                        unit: newProductForm.unit || 'unite',
+                        unit: selectedMaterial?.unit || 'unite',
                       }),
                     });
                     const json = await response.json();
@@ -895,27 +896,21 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       setMessage({ type: 'error', text: json.error || 'Erreur lors de l\'ajout' });
                     } else {
                       setMessage({ type: 'success', text: 'Article ajoute au fournisseur' });
-                      setNewProductForm({ materialId: '', unit: '' });
+                      setNewProductForm({ materialId: '' });
                       setShowAddProduct(false);
                       await refreshAll();
                     }
                   }} className="space-y-3">
                     <select
                       value={newProductForm.materialId}
-                      onChange={(e) => setNewProductForm({ ...newProductForm, materialId: e.target.value })}
+                      onChange={(e) => setNewProductForm({ materialId: e.target.value })}
                       className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
                     >
                       <option value="">Selectionnez un article</option>
                       {materials.map(m => (
-                        <option key={m.id} value={m.id}>{m.icon || '📦'} {m.name} ({m.category})</option>
+                        <option key={m.id} value={m.id}>{m.icon || '📦'} {m.name} ({m.category}) - Unite: {m.unit}</option>
                       ))}
                     </select>
-                    <input
-                      value={newProductForm.unit}
-                      onChange={(e) => setNewProductForm({ ...newProductForm, unit: e.target.value })}
-                      placeholder="Unite (sac, tonne, metre...)"
-                      className="w-full rounded-[18px] border border-kantioo-line px-4 py-3 outline-none"
-                    />
                     <button type="submit" className="action-primary w-full justify-center gap-2">
                       <Plus size={16} /> Ajouter l'article
                     </button>

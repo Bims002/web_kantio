@@ -1,10 +1,112 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { formatCityLabel } from '@/lib/cities';
 import type { Supplier } from '@/lib/types';
+
+// Coordonnées des quartiers de Douala et Yaoundé (comme dans order-assistant.ts)
+const QUARTIER_COORDS: Record<string, Record<string, { lat: number; lng: number }>> = {
+  douala: {
+    akwa: { lat: 4.0508, lng: 9.6963 },
+    bonapriso: { lat: 4.0321, lng: 9.6974 },
+    deido: { lat: 4.0617, lng: 9.7075 },
+    bonamoussadi: { lat: 4.0927, lng: 9.7402 },
+    logpom: { lat: 4.1026, lng: 9.7495 },
+    ndokoti: { lat: 4.0492, lng: 9.7391 },
+    bassa: { lat: 4.0458, lng: 9.7483 },
+    bali: { lat: 4.0416, lng: 9.6922 },
+    kotto: { lat: 4.1084, lng: 9.7583 },
+    japoma: { lat: 4.0152, lng: 9.7947 },
+    makepe: { lat: 4.0812, lng: 9.7541 },
+    bepanda: { lat: 4.0658, lng: 9.7283 },
+    nyalla: { lat: 4.0258, lng: 9.7783 },
+    yassa: { lat: 4.0058, lng: 9.8183 },
+    logbessou: { lat: 4.1258, lng: 9.7683 },
+    cite_des_palmiers: { lat: 4.0758, lng: 9.7483 },
+    bonaberi: { lat: 4.0758, lng: 9.6683 },
+    ndogpassi: { lat: 4.0258, lng: 9.7683 },
+    soboum: { lat: 4.0358, lng: 9.7283 },
+    pk14: { lat: 4.1158, lng: 9.8083 },
+    pk12: { lat: 4.1058, lng: 9.7903 },
+  },
+  yaounde: {
+    bastos: { lat: 3.894, lng: 11.5109 },
+    mvan: { lat: 3.8122, lng: 11.5158 },
+    messassi: { lat: 3.9312, lng: 11.5284 },
+    odza: { lat: 3.7945, lng: 11.5412 },
+    tsinga: { lat: 3.8821, lng: 11.4984 },
+    efoulan: { lat: 3.8214, lng: 11.4984 },
+    mendong: { lat: 3.8342, lng: 11.4782 },
+    biem_assi: { lat: 3.8412, lng: 11.4884 },
+    ngo_eke: { lat: 3.8542, lng: 11.5312 },
+    mimboman: { lat: 3.8642, lng: 11.5512 },
+    mvog_bi: { lat: 3.8412, lng: 11.5112 },
+    essos: { lat: 3.8712, lng: 11.5312 },
+    ngousso: { lat: 3.8912, lng: 11.5412 },
+    ekounou: { lat: 3.8312, lng: 11.5312 },
+    etoudi: { lat: 3.9112, lng: 11.5112 },
+    damas: { lat: 3.8212, lng: 11.4812 },
+    mvog_ada: { lat: 3.8612, lng: 11.5212 },
+    obobogo: { lat: 3.8112, lng: 11.5012 },
+    ahala: { lat: 3.7812, lng: 11.5112 },
+    nkoabang: { lat: 3.8512, lng: 11.5812 },
+    mballa_2: { lat: 3.8912, lng: 11.5212 },
+  },
+};
+
+// Coordonnées des villes
+const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  douala: { lat: 4.05, lng: 9.7 },
+  yaounde: { lat: 3.86, lng: 11.5 },
+};
+
+function getSupplierCoords(supplier: Supplier): [number, number] | null {
+  // 1. If lat/lng are valid, use them
+  if (supplier.lat && supplier.lng && Math.abs(supplier.lat) > 0.01 && Math.abs(supplier.lng) > 0.01) {
+    return [supplier.lng, supplier.lat];
+  }
+
+  // 2. Try quartier + ville
+  const cityKey = (supplier.city || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const quartier = (supplier.quartier || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  
+  if (cityKey && quartier) {
+    const cityQuartiers = QUARTIER_COORDS[cityKey];
+    if (cityQuartiers) {
+      // Find matching quartier (using token-based scoring)
+      const tokens = quartier.split(/\s+/).filter(t => t.length >= 2);
+      let bestKey: string | null = null;
+      let highestScore = 0;
+      
+      Object.keys(cityQuartiers).forEach(key => {
+        const normalizedKey = key.replace(/_/g, ' ');
+        let score = 0;
+        if (quartier.includes(normalizedKey)) score += 50;
+        tokens.forEach(token => {
+          if (normalizedKey.includes(token)) score += 20;
+        });
+        if (score > highestScore) {
+          highestScore = score;
+          bestKey = key;
+        }
+      });
+      
+      if (bestKey && highestScore >= 30) {
+        const coords = cityQuartiers[bestKey];
+        return [coords.lng, coords.lat];
+      }
+    }
+  }
+
+  // 3. Fall back to city center
+  if (cityKey && CITY_COORDS[cityKey]) {
+    return [CITY_COORDS[cityKey].lng, CITY_COORDS[cityKey].lat];
+  }
+
+  return null;
+}
 
 interface Props {
   suppliers: Supplier[];
@@ -50,8 +152,9 @@ export default function SupplierMap({
       // Add supplier markers
       let validCount = 0;
       suppliers.forEach((supplier, index) => {
-        if (!supplier.lat || !supplier.lng) {
-          console.warn(`Supplier[${index + 1}] ${supplier.name} has no coords (lat=${supplier.lat}, lng=${supplier.lng})`);
+        const coords = getSupplierCoords(supplier);
+        if (!coords) {
+          console.warn(`Supplier[${index + 1}] ${supplier.name} has no coords: city=${supplier.city}, quartier=${supplier.quartier}, lat=${supplier.lat}, lng=${supplier.lng}`);
           return;
         }
         validCount++;
@@ -70,7 +173,7 @@ export default function SupplierMap({
           color: '#e8650a',
           scale: 0.8,
         })
-          .setLngLat([supplier.lng, supplier.lat])
+          .setLngLat(coords)
           .setPopup(popup)
           .addTo(nextMap);
 
@@ -126,7 +229,8 @@ export default function SupplierMap({
     nextMap.on('load', () => {
       // Add supplier markers
       suppliers.forEach((supplier, index) => {
-        if (!supplier.lat || !supplier.lng) return;
+        const coords = getSupplierCoords(supplier);
+        if (!coords) return;
 
         const popup = new mapboxgl.Popup({ offset: 18, maxWidth: '280px' }).setHTML(`
           <div style="padding: 10px 8px; min-width: 200px; font-family: system-ui, sans-serif;">
@@ -142,7 +246,7 @@ export default function SupplierMap({
           color: '#e8650a',
           scale: 0.8,
         })
-          .setLngLat([supplier.lng, supplier.lat])
+          .setLngLat(coords)
           .setPopup(popup)
           .addTo(nextMap);
 
