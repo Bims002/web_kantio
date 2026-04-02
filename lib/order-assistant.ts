@@ -252,8 +252,8 @@ export function createOrderDraft(input: {
   return {
     selectedSupplier: {
       ...input.selectedSupplier,
-      // Keep supplier direct contact out of the client-side draft.
-      phone: "",
+      // Keep supplier phone for WhatsApp notification
+      // phone is only used internally for order finalization, not displayed to client
     },
     cart: input.cart,
     siteInfo: {
@@ -450,7 +450,7 @@ export function applyDraftFieldAnswer(
           console.log(`Re-matching supplier for ${value}: ${draft.selectedSupplier?.name || 'None'} -> ${bestSupplier.name}`);
           newDraft.selectedSupplier = {
             ...bestSupplier,
-            phone: "", // Keep client-side draft clean
+            // Keep phone for WhatsApp notification
           };
         }
       }
