@@ -100,29 +100,22 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
   return nextQuestion || "Je suis prêt pour la suite.";
 }
 
-function extractOpenRouterText(payload: unknown) {
-  if (!payload || typeof payload !== "object" || !("choices" in payload)) {
+function extractHuggingFaceText(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
     return null;
   }
 
-  const choices = (payload as {
-    choices?: Array<{
-      message?: {
-        content?: string | Array<{ type?: string; text?: string }>;
-      };
-    }>;
-  }).choices;
-  const firstContent = choices?.[0]?.message?.content;
-
-  if (typeof firstContent === "string") {
-    return firstContent.trim();
+  // HuggingFace Inference API returns an array of generated texts
+  if (Array.isArray(payload)) {
+    const firstResult = payload[0];
+    if (firstResult && typeof firstResult === "object" && "generated_text" in firstResult) {
+      return (firstResult as { generated_text: string }).generated_text.trim();
+    }
   }
 
-  if (Array.isArray(firstContent)) {
-    return firstContent
-      .map((item) => (typeof item?.text === "string" ? item.text : ""))
-      .join("\n")
-      .trim();
+  // Some models return { generated_text: string } directly
+  if ("generated_text" in payload) {
+    return (payload as { generated_text: string }).generated_text.trim();
   }
 
   return null;
@@ -151,8 +144,8 @@ export async function POST(request: Request) {
           body.messages[body.messages.length - 1]?.content || ""
         )
       : body.preferredReply || "Je peux vous aider sur cette commande.";
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || "openai/gpt-4.1-mini";
+    const apiKey = process.env.HF_API_KEY;
+    const hfModel = "Faradaylab/ARIA-7B-V3";
 
     if (!apiKey) {
       return Response.json({ message: body.preferredReply || fallback });
@@ -160,7 +153,13 @@ export async function POST(request: Request) {
 
     const filterInstruction = body.filterContext ? `\n${body.filterContext}` : "";
 
-    const instructions =
+    // Build conversation history for HuggingFace
+    const conversationHistory = body.messages
+      .map((msg) => `${msg.role === "user" ? "Utilisateur" : "Assistant"}: ${msg.content}`)
+      .join("\n");
+
+    // Build full prompt for HuggingFace (single text input)
+    const prompt =
       "Tu es l'assistant de commande Kantioo. " +
       "Tu aides uniquement sur la commande en cours: panier, quantites, fournisseur, delai, livraison, contact, prochaines etapes et finalisation. " +
       "Tu ne parles JAMAIS de prix, de tarifs ou de montants, car Kantioo ne gere plus les prix directement. " +
@@ -172,32 +171,30 @@ export async function POST(request: Request) {
       "S il manque des informations indispensables, pose une seule question a la fois pour les recueillir dans cet ordre: quartier de livraison, nom du contact, numero. " +
       "Si l'utilisateur sort de ce cadre, refuse poliment et recentre la conversation. " +
       "Reponses courtes, concretes, en francais. " +
-      "IMPORTANT : Ta reponse doit être calme et naturelle. " +
+      "IMPORTANT : Ta reponse doit être calme et naturelle." +
       `\n\nContexte de commande:\n${draftSummary}` +
       (body.preferredReply
         ? `\n\nBase factuelle a reformuler naturellement:\n${body.preferredReply}`
         : "") +
-      filterInstruction;
+      filterInstruction +
+      `\n\nHistorique de conversation:\n${conversationHistory}\n\nAssistant:`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}/v1/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "Kantioo Order Assistant",
       },
       body: JSON.stringify({
-        model,
         messages: [
           {
             role: "system",
-            content: instructions,
+            content: "Tu es l'assistant de commande Kantioo. Tu aides uniquement sur la commande en cours. Tu ne parles JAMAIS de prix. Tu reponds de maniere naturelle, concise, calme et utile en francais.",
           },
-          ...body.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          {
+            role: "user",
+            content: prompt,
+          },
         ],
         temperature: 0.6,
         max_tokens: 350,
@@ -209,7 +206,7 @@ export async function POST(request: Request) {
     }
 
     const payload = (await response.json()) as unknown;
-    const assistantText = extractOpenRouterText(payload);
+    const assistantText = extractHuggingFaceText(payload);
 
     return Response.json({
       message: assistantText || body.preferredReply || fallback,
