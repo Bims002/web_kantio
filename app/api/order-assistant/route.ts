@@ -181,34 +181,42 @@ export async function POST(request: Request) {
       filterInstruction +
       `\n\nHistorique de conversation:\n${conversationHistory}\n\nAssistant:`;
 
-    const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content: "Tu es l'assistant de commande Kantioo. Tu aides uniquement sur la commande en cours. Tu ne parles JAMAIS de prix. Tu reponds de maniere naturelle, concise, calme et utile en francais.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.6,
-        max_tokens: 350,
-      }),
-    });
+    let assistantText: string | null = null;
+    
+    try {
+      const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "Tu es l'assistant de commande Kantioo. Tu aides uniquement sur la commande en cours. Tu ne parles JAMAIS de prix. Tu reponds de maniere naturelle, concise, calme et utile en francais.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.6,
+          max_tokens: 350,
+        }),
+      });
 
-    if (!response.ok) {
-      return Response.json({ message: body.preferredReply || fallback });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("HuggingFace API error", response.status, errorText);
+      } else {
+        const payload = (await response.json()) as unknown;
+        console.log("HuggingFace response", payload);
+        assistantText = extractHuggingFaceText(payload);
+      }
+    } catch (apiError) {
+      console.error("HuggingFace API call failed", apiError);
     }
-
-    const payload = (await response.json()) as unknown;
-    const assistantText = extractHuggingFaceText(payload);
 
     return Response.json({
       message: assistantText || body.preferredReply || fallback,
