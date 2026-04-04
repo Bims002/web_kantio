@@ -2,10 +2,11 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdminRequest } from "@/lib/admin-route";
 import { NextResponse } from "next/server";
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const { response } = await requireAdminRequest();
   if (response) return response;
 
+  const params = await context.params;
   const orderId = params.id;
 
   // First delete all order items (foreign key constraint)
