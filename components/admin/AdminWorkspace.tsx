@@ -392,6 +392,25 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
     setMessage({ type: 'success', text: 'Statut mis a jour.' });
   };
 
+  const deleteOrder = async (orderId: string) => {
+    if (!window.confirm('Confirmer la suppression definitive de cette commande ?')) {
+      return;
+    }
+
+    const { error } = await adminFetch(`/api/admin/orders/${orderId}`, {
+      method: 'DELETE',
+    });
+
+    if (error) {
+      setMessage({ type: 'error', text: error });
+      return;
+    }
+
+    // Remove order from local state
+    setOrders((current) => current.filter((order) => order.id !== orderId));
+    setMessage({ type: 'success', text: 'Commande supprimee.' });
+  };
+
   const handleLogout = async () => {
     if (!window.confirm('Confirmer la deconnexion ?')) return;
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -629,6 +648,7 @@ export default function AdminWorkspace({ adminEmail }: { adminEmail: string }) {
                       <button type="button" onClick={() => void updateOrderStatus(order.id, 'in_delivery')} className="action-secondary justify-center gap-2"><Truck size={16} />Livraison</button>
                       <button type="button" onClick={() => void updateOrderStatus(order.id, 'delivered')} className="action-secondary justify-center gap-2"><CheckCircle size={16} />Livree</button>
                       <button type="button" onClick={() => void updateOrderStatus(order.id, 'cancelled')} className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><XCircle size={16} />Annuler</button>
+                      <button type="button" onClick={() => void deleteOrder(order.id)} className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 col-span-2"><Trash2 size={16} />Supprimer definitivement</button>
                     </div>
                   </div>
                 </div>
