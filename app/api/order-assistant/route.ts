@@ -101,21 +101,23 @@ function fallbackAssistantReply(draft: OrderDraft, userMessage: string) {
 }
 
 function extractHuggingFaceText(payload: unknown) {
-  if (!payload || typeof payload !== "object") {
+  if (!payload || typeof payload !== "object" || !("choices" in payload)) {
     return null;
   }
 
-  // HuggingFace Inference API returns an array of generated texts
-  if (Array.isArray(payload)) {
-    const firstResult = payload[0];
-    if (firstResult && typeof firstResult === "object" && "generated_text" in firstResult) {
-      return (firstResult as { generated_text: string }).generated_text.trim();
-    }
-  }
+  // ARIA-7B-V3 uses OpenAI compatible format (chat completions)
+  const choices = (payload as {
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
+    }>;
+  }).choices;
+  
+  const firstContent = choices?.[0]?.message?.content;
 
-  // Some models return { generated_text: string } directly
-  if ("generated_text" in payload) {
-    return (payload as { generated_text: string }).generated_text.trim();
+  if (typeof firstContent === "string") {
+    return firstContent.trim();
   }
 
   return null;
