@@ -743,17 +743,6 @@ export default function OrderAssistant({
         throw itemsError;
       }
 
-      const whatsappOrder: Order = {
-        ...order,
-        supplier_phone: draft.selectedSupplier?.phone || null,
-        order_items: orderItems,
-      };
-      const whatsappLink = buildWhatsAppLink(generateWhatsAppMessage(whatsappOrder));
-
-      window.open(whatsappLink, '_blank', 'noopener,noreferrer');
-
-      await supabase.from('orders').update({ whatsapp_sent: true }).eq('id', order.id);
-
       sessionStorage.removeItem(STORAGE_KEY);
       router.push(`/suivi/${trackingToken}`);
     } catch (error) {
